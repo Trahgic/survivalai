@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>First Aid Decision Tree — SurvivalAI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',-apple-system,sans-serif;background:#0c0d11;color:#d4d4d8;min-height:100vh;padding:16px}
+h1{font-size:1.3em;color:#eaebf0;margin-bottom:4px}
+.sub{color:#6b6e7b;font-size:.85em;margin-bottom:20px}
+.back{color:#6b6e7b;text-decoration:none;font-size:.85em;display:inline-block;margin-bottom:12px}
+.back:hover{color:#d4d4d8}
+.scenarios{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:20px;max-width:900px}
+.scenario{padding:14px;background:#141519;border:1px solid #2a2b36;border-radius:8px;cursor:pointer;transition:all .15s;text-align:center}
+.scenario:hover{border-color:#3b82f6;transform:translateY(-1px)}
+.scenario .icon{font-size:1.8em;margin-bottom:6px}
+.scenario .label{color:#eaebf0;font-weight:600;font-size:.9em}
+#tree{max-width:700px}
+.node{background:#141519;border:1px solid #2a2b36;border-radius:10px;padding:18px 20px;margin-bottom:12px}
+.node-q{font-size:1em;color:#eaebf0;font-weight:600;margin-bottom:14px;line-height:1.4}
+.node-action{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:6px;padding:12px 16px;color:#86efac;font-size:.88em;line-height:1.7;margin-bottom:12px}
+.node-warn{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:10px 14px;color:#fca5a5;font-size:.85em;margin-bottom:12px;line-height:1.5}
+.options{display:flex;gap:8px;flex-wrap:wrap}
+.opt{padding:10px 18px;background:#1b1c23;border:1px solid #2a2b36;border-radius:6px;color:#d4d4d8;cursor:pointer;font-size:.88em;transition:all .15s;flex:1;min-width:120px;text-align:center}
+.opt:hover{background:#23242d;border-color:#3b82f6;color:#eaebf0}
+.opt.yes{border-color:rgba(34,197,94,.3)}
+.opt.yes:hover{border-color:#22c55e;background:rgba(34,197,94,.1)}
+.opt.no{border-color:rgba(239,68,68,.3)}
+.opt.no:hover{border-color:#ef4444;background:rgba(239,68,68,.1)}
+.restart{padding:8px 16px;background:#1b1c23;border:1px solid #2a2b36;border-radius:6px;color:#9ca3af;cursor:pointer;font-size:.82em;margin-top:8px}
+.restart:hover{background:#23242d;color:#d4d4d8}
+.step-label{color:#6b6e7b;font-size:.75em;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+</style>
+</head>
+<body>
+<a href="index.html" class="back">&larr; Back to Chat</a>
+<h1>First Aid Decision Tree</h1>
+<p class="sub">Answer questions to get step-by-step guidance</p>
+
+<div id="menu" class="scenarios">
+  <div class="scenario" onclick="start('bleeding')"><div class="icon">&#x1FA78;</div><div class="label">Bleeding</div></div>
+  <div class="scenario" onclick="start('nobreath')"><div class="icon">&#x1F4A8;</div><div class="label">Not Breathing</div></div>
+  <div class="scenario" onclick="start('choking')"><div class="icon">&#x1F630;</div><div class="label">Choking</div></div>
+  <div class="scenario" onclick="start('burns')"><div class="icon">&#x1F525;</div><div class="label">Burns</div></div>
+  <div class="scenario" onclick="start('bones')"><div class="icon">&#x1F9B4;</div><div class="label">Broken Bone</div></div>
+  <div class="scenario" onclick="start('allergy')"><div class="icon">&#x26A0;</div><div class="label">Allergic Reaction</div></div>
+  <div class="scenario" onclick="start('wounds')"><div class="icon">&#x1FA79;</div><div class="label">Wound Care</div></div>
+  <div class="scenario" onclick="start('temp')"><div class="icon">&#x1F321;</div><div class="label">Heat / Cold</div></div>
+</div>
+
+<div id="tree"></div>
+
+<script>
+// All nodes use string IDs. Simple and reliable.
+var DATA = {
+  // ===== BLEEDING =====
+  'bleeding': {
+    q: 'Is the bleeding severe? (spurting, pooling, or soaking through cloth)',
+    yes: 'bleed_severe', no: 'bleed_minor'
+  },
+  'bleed_severe': {
+    q: 'Is the wound on a limb (arm or leg)?',
+    yes: 'bleed_limb', no: 'bleed_torso'
+  },
+  'bleed_limb': {
+    action: '<strong>Apply DIRECT PRESSURE</strong> with a clean cloth. Press HARD. Do not lift to check.<br><br>If soaking through, add more material on top. Do NOT remove the first layer.<br><br>Hold pressure for at least 10 minutes continuously.',
+    q: 'Has direct pressure stopped the bleeding?',
+    yes: 'bleed_controlled', no: 'bleed_tourniquet'
+  },
+  'bleed_tourniquet': {
+    action: '<strong>TOURNIQUET</strong><br><br>1. Apply 2-3 inches ABOVE the wound (not on a joint)<br>2. Use a belt, strip of cloth, or commercial tourniquet<br>3. Tighten until bleeding STOPS completely<br>4. Write the TIME on the tourniquet or patient\'s forehead<br>5. Do NOT remove the tourniquet<br><br>Improvised: any material 1.5 inches+ wide. NOT wire or string.',
+    warn: 'A tourniquet hurts. That means it\'s working. Do not loosen because of pain.'
+  },
+  'bleed_torso': {
+    action: '<strong>Torso/neck/groin bleeding cannot be tourniqueted.</strong><br><br>1. PACK the wound: push clean cloth or gauze directly INTO the wound<br>2. Apply maximum direct pressure on top<br>3. Do not release pressure<br>4. This person needs surgical care — evacuate if any option exists',
+    warn: 'Internal abdominal or chest bleeding cannot be controlled in the field. Treat for shock (lay flat, elevate legs, keep warm) and evacuate.'
+  },
+  'bleed_controlled': {
+    action: '<strong>Bleeding controlled.</strong><br><br>1. Bandage firmly but not so tight it cuts off circulation<br>2. Check fingers/toes below the bandage — should be warm and pink<br>3. Watch for infection over the next 3-5 days<br>4. If bleeding restarts, re-apply direct pressure'
+  },
+  'bleed_minor': {
+    action: '<strong>Minor bleeding:</strong><br><br>1. Clean the wound with clean water<br>2. Apply antibiotic ointment<br>3. Cover with a bandage<br>4. Watch for infection signs: increasing redness, swelling, warmth, pus, or fever over the next 3-5 days'
+  },
+
+  // ===== NOT BREATHING =====
+  'nobreath': {
+    q: 'Is the person responsive? (Tap shoulders and shout their name)',
+    yes: 'breath_responsive', no: 'breath_unresponsive'
+  },
+  'breath_responsive': {
+    action: '<strong>Responsive but difficulty breathing:</strong><br><br>1. Sit them upright — do NOT lay them flat<br>2. Loosen any tight clothing<br>3. If asthma: help them use their inhaler. No inhaler? Strong black coffee provides mild relief.<br>4. If allergic reaction: see the Allergic Reaction tree<br>5. Stay with them and monitor'
+  },
+  'breath_unresponsive': {
+    q: 'Are they breathing? (Watch chest for 10 seconds — look for rise and fall)',
+    yes: 'breath_recovery', no: 'breath_cpr'
+  },
+  'breath_recovery': {
+    action: '<strong>Breathing but unconscious:</strong><br><br>1. Place in RECOVERY POSITION — roll onto their side<br>2. Top knee bent forward for stability<br>3. Tilt head back slightly to keep airway open<br>4. Monitor breathing continuously<br>5. Do NOT leave them alone<br>6. Do NOT give food or water'
+  },
+  'breath_cpr': {
+    action: '<strong>NOT BREATHING — Start CPR NOW</strong><br><br>1. Place heel of hand on CENTER of chest (between nipples)<br>2. Push HARD and FAST — 2 inches deep, 100-120 per minute<br>3. After 30 compressions: tilt head back, lift chin, pinch nose<br>4. Give 2 breaths (1 second each) — watch for chest rise<br>5. Continue 30 compressions, 2 breaths — do not stop<br>6. If they vomit: roll to side, clear mouth, resume CPR<br><br><strong>Do NOT stop until:</strong> they start breathing, someone takes over, an AED arrives, or you physically cannot continue.',
+    warn: 'Effective CPR often breaks ribs. This is normal. Do NOT stop because you feel or hear cracks. Switch with another person every 2 minutes if possible — CPR is exhausting.'
+  },
+
+  // ===== CHOKING =====
+  'choking': {
+    q: 'Can the person cough forcefully?',
+    yes: 'choke_cough', no: 'choke_age'
+  },
+  'choke_cough': {
+    action: '<strong>Encourage them to keep coughing.</strong><br><br>Coughing is the most effective way to clear an airway. Do NOT slap their back or do abdominal thrusts while they can cough. Stay with them and monitor.'
+  },
+  'choke_age': {
+    q: 'Is the person over 1 year old?',
+    yes: 'choke_adult', no: 'choke_infant'
+  },
+  'choke_adult': {
+    action: '<strong>Adult/Child Choking:</strong><br><br>1. Stand behind them<br>2. Make a fist — place thumb side against abdomen, just ABOVE the navel<br>3. Grab fist with other hand<br>4. Pull sharply INWARD and UPWARD — 5 thrusts<br>5. Alternate with 5 back blows (heel of hand between shoulder blades)<br>6. Continue until object comes out or person goes unconscious<br><br><strong>If unconscious:</strong> Lower to ground. Start CPR. Before each breath, look in mouth and remove any visible object.',
+    warn: 'Do NOT do blind finger sweeps — you may push the object deeper. Only remove objects you can clearly see.'
+  },
+  'choke_infant': {
+    action: '<strong>Infant Choking (under 1 year):</strong><br><br>Do NOT do abdominal thrusts on infants.<br><br>1. Hold infant FACE DOWN on your forearm, head lower than chest<br>2. Give 5 back blows between shoulder blades with heel of hand<br>3. Turn infant FACE UP on your other arm<br>4. Give 5 chest thrusts with 2 fingers on center of chest, just below nipple line<br>5. Alternate: 5 back blows, 5 chest thrusts<br><br><strong>If unconscious:</strong> Start infant CPR — 2 fingers, 1.5 inches deep, cover mouth AND nose for breaths.'
+  },
+
+  // ===== BURNS =====
+  'burns': {
+    q: 'Is this a chemical burn (acid, bleach, lye, battery)?',
+    yes: 'burn_chemical', no: 'burn_size'
+  },
+  'burn_chemical': {
+    action: '<strong>CHEMICAL BURN:</strong><br><br>1. Flush with water IMMEDIATELY — seconds matter<br>2. Continue flushing for at least 20 minutes<br>3. Remove contaminated clothing while flushing<br>4. If in eyes: hold eyes open and flush for 20 minutes<br>5. Do NOT try to neutralize the chemical with another chemical<br>6. After flushing, treat as a thermal burn of equivalent severity',
+    warn: 'Alkali burns (lye, ammonia, cement dust) are worse than acid burns. They keep penetrating tissue. Flush 30 minutes minimum.'
+  },
+  'burn_size': {
+    q: 'Is the burned area larger than your palm?',
+    yes: 'burn_large', no: 'burn_blisters'
+  },
+  'burn_blisters': {
+    q: 'Does the burn have blisters?',
+    yes: 'burn_second', no: 'burn_first'
+  },
+  'burn_first': {
+    action: '<strong>First Degree Burn (red, no blisters):</strong><br><br>1. Cool under running water or wet cloth for 10 minutes<br>2. Apply aloe vera or moisturizer<br>3. Ibuprofen or acetaminophen for pain<br>4. No bandage needed unless clothing rubs it<br><br>Heals in 3-7 days.'
+  },
+  'burn_second': {
+    action: '<strong>Second Degree Burn (blisters):</strong><br><br>1. Cool under running water for 10-20 minutes<br>2. Do NOT pop blisters — they protect against infection<br>3. Apply antibiotic ointment<br>4. Cover with a loose non-stick dressing<br>5. Change dressing daily<br>6. Watch for infection: increasing redness, pus, fever<br><br>Heals in 2-3 weeks.',
+    warn: 'If a blister pops on its own, clean gently, apply antibiotic ointment, and cover. Do not remove the dead skin — it protects the wound.'
+  },
+  'burn_large': {
+    q: 'Is the skin white, brown, black, or leathery? Is the area painless despite the burn?',
+    yes: 'burn_third', no: 'burn_second'
+  },
+  'burn_third': {
+    action: '<strong>Third Degree Burn (white/black/leathery, painless):</strong><br><br>1. Do NOT apply ice or cold water<br>2. Do NOT remove clothing stuck to the burn<br>3. Cover loosely with a clean dry dressing<br>4. Elevate the burned area if possible<br>5. Give fluids — burn victims dehydrate rapidly<br>6. Pain medication (acetaminophen — avoid ibuprofen with large burns)<br><br>This requires professional medical care. Evacuate if any option exists.',
+    warn: 'Estimate burn area: one palm = 1% of body surface. Burns over 15-20% of the body are life-threatening from fluid loss alone.'
+  },
+
+  // ===== BROKEN BONE =====
+  'bones': {
+    q: 'Is bone visible through the skin?',
+    yes: 'bone_open', no: 'bone_move'
+  },
+  'bone_open': {
+    action: '<strong>OPEN FRACTURE — bone visible:</strong><br><br>This is a surgical emergency.<br><br>1. Control bleeding with pressure AROUND the wound — not on exposed bone<br>2. Cover the wound with a moist sterile dressing<br>3. Splint the limb without pushing bone back in<br>4. Start antibiotics: amoxicillin 500mg every 8 hours<br>5. Evacuate to surgical care',
+    warn: 'Do NOT push the bone back under the skin. Do NOT try to realign the fracture. Splint it in the position you found it.'
+  },
+  'bone_move': {
+    q: 'Can the person move the injured area at all?',
+    yes: 'bone_minor', no: 'bone_major'
+  },
+  'bone_minor': {
+    action: '<strong>Possible sprain or minor fracture:</strong><br><br>1. Splint the injury — immobilize the joints above AND below<br>2. Apply cold if available (20 min on, 20 min off)<br>3. Elevate above heart level<br>4. Ibuprofen for pain and swelling<br>5. Rest 24-48 hours and reassess<br><br>If swelling worsens dramatically or the person cannot bear weight after 48 hours, treat as a significant fracture.'
+  },
+  'bone_major': {
+    action: '<strong>Likely significant fracture:</strong><br><br>1. Splint in the POSITION FOUND — do NOT try to straighten<br>2. Pad the splint for comfort<br>3. Immobilize the joints above AND below the break<br>4. Check circulation below the splint: fingers/toes should be warm, pink, with feeling<br>5. If no pulse below the splint, loosen slightly<br>6. Ibuprofen + acetaminophen together for pain<br><br><strong>Splint materials:</strong> sticks, boards, rolled magazine, SAM splint, pillow tied around the limb.',
+    warn: 'Check circulation (pulse, color, sensation) below the splint every 30 minutes. Blue, cold, or numb fingers/toes = splint too tight.'
+  },
+
+  // ===== ALLERGIC REACTION =====
+  'allergy': {
+    q: 'Is the person having trouble breathing, or is their throat/tongue swelling?',
+    yes: 'allergy_severe', no: 'allergy_hives'
+  },
+  'allergy_severe': {
+    action: '<strong>ANAPHYLAXIS — Life threatening</strong><br><br>1. EPINEPHRINE immediately: EpiPen 0.3mg in outer thigh — through clothing is OK. Hold 10 seconds.<br>2. If no EpiPen: there is no substitute. Diphenhydramine alone is NOT adequate.<br>3. Lay the person down, elevate legs — UNLESS breathing is difficult, then sit them up<br>4. Give diphenhydramine (Benadryl) 50mg after epinephrine<br>5. If no improvement in 5-15 minutes, give a SECOND dose of epinephrine<br>6. Prepare for CPR — anaphylaxis can cause cardiac arrest',
+    warn: 'Anaphylaxis kills in minutes. Give epinephrine FIRST, ask questions later. Symptoms can return 4-12 hours later (biphasic reaction). Monitor for 24 hours.'
+  },
+  'allergy_hives': {
+    q: 'Are there widespread hives, swelling, or rash?',
+    yes: 'allergy_moderate', no: 'allergy_mild'
+  },
+  'allergy_moderate': {
+    action: '<strong>Moderate allergic reaction:</strong><br><br>1. Diphenhydramine (Benadryl) 25-50mg immediately<br>2. Remove the allergen if you can identify it<br>3. Watch closely for 4-6 hours — reactions can worsen<br>4. If breathing difficulty develops at ANY point, treat as anaphylaxis',
+    warn: 'A moderate reaction can escalate to anaphylaxis without warning. Stay with the person and monitor closely.'
+  },
+  'allergy_mild': {
+    action: '<strong>Mild allergic reaction (localized redness, itching):</strong><br><br>1. Diphenhydramine 25mg<br>2. Cold compress on the affected area<br>3. Remove allergen if known<br>4. Monitor for 2-4 hours for any worsening'
+  },
+
+  // ===== WOUND CARE =====
+  'wounds': {
+    q: 'Is the wound still actively bleeding?',
+    yes: 'wound_bleeding', no: 'wound_dirty'
+  },
+  'wound_bleeding': {
+    action: 'Stop the bleeding first using direct pressure. See the <strong>Bleeding</strong> scenario for detailed steps.<br><br>Once bleeding is controlled, come back here for wound care.'
+  },
+  'wound_dirty': {
+    q: 'Is the wound contaminated? (dirt, debris, rusty metal, animal bite)',
+    yes: 'wound_contaminated', no: 'wound_clean'
+  },
+  'wound_contaminated': {
+    action: '<strong>Contaminated wound — clean aggressively:</strong><br><br>1. Flush with clean water under pressure (squeeze bottle or syringe)<br>2. Remove all visible debris with clean tweezers<br>3. Scrub gently AROUND (not in) the wound with soap<br>4. Flush again thoroughly<br>5. Apply antibiotic ointment<br>6. LEAVE OPEN — do not close contaminated or bite wounds<br><br><strong>For animal bites:</strong> start oral antibiotics — amoxicillin 875mg every 12 hours for 7-10 days.'
+  },
+  'wound_clean': {
+    action: '<strong>Clean wound:</strong><br><br>1. Rinse with clean water<br>2. Apply antibiotic ointment<br>3. If edges come together cleanly and the wound is less than 6 hours old: close with butterfly strips or steri-strips<br>4. Cover with a clean dressing<br>5. Change dressing daily<br>6. Watch for infection: redness, swelling, warmth, pus, red streaks, fever',
+    warn: 'Red streaks spreading from a wound toward the heart = blood infection. Start antibiotics immediately: amoxicillin 500mg every 8 hours. This is life-threatening.'
+  },
+
+  // ===== HEAT / COLD =====
+  'temp': {
+    q: 'Is the person too HOT or too COLD?',
+    opts: [
+      {label: 'Too hot (heat illness)', go: 'temp_hot'},
+      {label: 'Too cold (hypothermia)', go: 'temp_cold'}
+    ]
+  },
+  'temp_hot': {
+    q: 'Is the person confused, has stopped sweating, or has hot dry skin?',
+    yes: 'temp_heatstroke', no: 'temp_exhaust'
+  },
+  'temp_exhaust': {
+    action: '<strong>Heat Exhaustion:</strong><br><br>1. Move to shade immediately<br>2. Lay down, elevate legs<br>3. Remove excess clothing<br>4. Cool with wet cloths on skin, fan<br>5. Sip cool water with salt (1/4 tsp per quart)<br>6. Rest for 24 hours minimum<br><br>If confusion develops or condition worsens, treat as heat stroke.'
+  },
+  'temp_heatstroke': {
+    action: '<strong>HEAT STROKE — Life threatening</strong><br><br>The body\'s cooling system has FAILED. Brain damage is occurring NOW.<br><br>1. COOL AGGRESSIVELY — this is the only priority<br>2. Immerse in cool water if possible<br>3. If no immersion: pour water over entire body and fan vigorously<br>4. Pack cold items at neck, armpits, groin<br>5. Do NOT give fluids to an unconscious person<br>6. Prepare for seizures — protect the head<br>7. Continue cooling until body feels normal temperature',
+    warn: 'Heat stroke has 50%+ mortality without aggressive cooling. Every minute of delay worsens outcome. Cool them NOW, transport later.'
+  },
+  'temp_cold': {
+    q: 'Is the person still shivering?',
+    yes: 'temp_mild_hypo', no: 'temp_severe_hypo'
+  },
+  'temp_mild_hypo': {
+    action: '<strong>Mild Hypothermia (shivering, conscious):</strong><br><br>Shivering is GOOD — it means the body is still fighting.<br><br>1. Get out of wind and wet<br>2. Remove wet clothing — replace with dry<br>3. Insulate from the ground (pad, branches, pack)<br>4. Wrap in blankets or sleeping bag<br>5. Warm sweet drinks — NOT alcohol<br>6. Skin-to-skin contact in a sleeping bag is very effective<br>7. Do NOT rub or massage cold limbs'
+  },
+  'temp_severe_hypo': {
+    action: '<strong>Severe Hypothermia (NOT shivering, confused or unconscious):</strong><br><br>Handle VERY GENTLY — rough movement can cause fatal cardiac arrest.<br><br>1. Do NOT rub or massage<br>2. Remove wet clothing by cutting — minimize movement<br>3. Insulate and rewarm SLOWLY<br>4. Warm water bottles at neck, armpits, groin<br>5. Do NOT give food or fluids if unconscious<br><br><strong>If no pulse:</strong> Check for 60 seconds (heart rate may be extremely slow). If truly no pulse, start CPR. Continue until the person is rewarmed.',
+    warn: '"Nobody is dead until they are WARM and dead." People have survived hours of severe hypothermia with no detectable pulse. Do not give up on CPR until the person has been rewarmed.'
+  }
+};
+
+function start(id) {
+  document.getElementById('menu').style.display = 'none';
+  show(id);
+}
+
+function show(id) {
+  var node = DATA[id];
+  if (!node) return;
+
+  var el = document.getElementById('tree');
+  var h = '<div class="step-label">STEP</div><div class="node">';
+
+  // Show action text if present
+  if (node.action) {
+    h += '<div class="node-action">' + node.action + '</div>';
+  }
+
+  // Show warning if present
+  if (node.warn) {
+    h += '<div class="node-warn">&#9888; ' + node.warn + '</div>';
+  }
+
+  // Show question if present
+  if (node.q) {
+    h += '<div class="node-q">' + node.q + '</div>';
+
+    if (node.opts) {
+      // Multiple choice options
+      h += '<div class="options">';
+      for (var i = 0; i < node.opts.length; i++) {
+        h += '<div class="opt" onclick="show(\'' + node.opts[i].go + '\')">' + node.opts[i].label + '</div>';
+      }
+      h += '</div>';
+    } else if (node.yes !== undefined) {
+      // Yes/No
+      h += '<div class="options">';
+      h += '<div class="opt yes" onclick="show(\'' + node.yes + '\')">Yes</div>';
+      h += '<div class="opt no" onclick="show(\'' + node.no + '\')">No</div>';
+      h += '</div>';
+    }
+  }
+
+  h += '</div>';
+  h += '<button class="restart" onclick="goBack()">&larr; Start Over</button>';
+
+  el.innerHTML = h;
+  window.scrollTo(0, 0);
+}
+
+function goBack() {
+  document.getElementById('tree').innerHTML = '';
+  document.getElementById('menu').style.display = 'grid';
+}
+</script>
+</body>
+</html>

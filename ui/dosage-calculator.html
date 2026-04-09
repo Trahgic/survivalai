@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Medication Dosage Calculator — SurvivalAI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f1115;color:#d4d4d8;min-height:100vh;padding:16px}
+h1{font-size:1.4em;color:#e4e4e7;margin-bottom:4px}
+.subtitle{color:#71717a;font-size:.85em;margin-bottom:20px}
+.warning-banner{background:#451a03;border:1px solid #92400e;border-radius:8px;padding:12px 16px;margin-bottom:20px;color:#fbbf24;font-size:.85em;line-height:1.5}
+.panel{background:#1a1b22;border:1px solid #2e2f3a;border-radius:10px;padding:20px;margin-bottom:16px}
+.panel h2{font-size:.85em;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px}
+.row{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.field{flex:1;min-width:140px}
+.field label{display:block;color:#a1a1aa;font-size:.78em;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.field input,.field select{width:100%;padding:10px 12px;background:#0f1115;border:1px solid #2e2f3a;border-radius:6px;color:#e4e4e7;font-size:1em;outline:none}
+.field input:focus,.field select:focus{border-color:#2563eb}
+.result-card{background:#0f1115;border:1px solid #2e2f3a;border-radius:8px;padding:16px;margin-top:14px}
+.dose-line{font-size:1.1em;color:#34d399;margin-bottom:6px}
+.dose-detail{color:#a1a1aa;font-size:.85em;line-height:1.6}
+.dose-warn{color:#f87171;font-size:.85em;margin-top:8px;line-height:1.5}
+.med-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;margin-bottom:14px}
+.med-btn{padding:10px 12px;background:#1e1f26;border:1px solid #2e2f3a;border-radius:6px;color:#d4d4d8;cursor:pointer;font-size:.85em;text-align:left;transition:all .15s}
+.med-btn:hover{background:#27282f;border-color:#3e3f4a}
+.med-btn.active{background:#1e3a5f;border-color:#2563eb;color:#60a5fa}
+.med-name{font-weight:600}
+.med-type{color:#71717a;font-size:.78em}
+.section-label{color:#71717a;font-size:.78em;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px}
+</style>
+</head>
+<body>
+<h1>Medication Dosage Calculator</h1>
+<p class="subtitle">Weight-based dosing — offline, no internet required</p>
+
+<div class="warning-banner">
+⚠ <strong>EMERGENCY REFERENCE ONLY.</strong> This tool provides standard dosing guidelines for situations where no medical professional is available. Medications have interactions, contraindications, and side effects. Seek professional medical care whenever any option exists. Wrong dosages can be fatal.
+</div>
+
+<div class="panel">
+  <h2>Patient Information</h2>
+  <div class="row">
+    <div class="field">
+      <label>Weight</label>
+      <input type="number" id="weight" value="150" oninput="calculate()">
+    </div>
+    <div class="field">
+      <label>Unit</label>
+      <select id="weight-unit" onchange="calculate()">
+        <option value="lbs">Pounds (lbs)</option>
+        <option value="kg">Kilograms (kg)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Age Group</label>
+      <select id="age" onchange="calculate()">
+        <option value="adult">Adult (13+)</option>
+        <option value="child">Child (2-12)</option>
+        <option value="infant">Infant (6-23 mo)</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Select Medication</h2>
+  <div class="section-label">Over-the-Counter</div>
+  <div class="med-list" id="otc-list"></div>
+  <div class="section-label">Antibiotics (Fish Antibiotics)</div>
+  <div class="med-list" id="abx-list"></div>
+  <div class="section-label">Emergency</div>
+  <div class="med-list" id="emerg-list"></div>
+</div>
+
+<div class="panel" id="result-panel" style="display:none">
+  <h2 id="result-title">Dosage</h2>
+  <div class="result-card" id="result-card"></div>
+</div>
+
+<script>
+const MEDS = [
+  // OTC
+  {id:'acetaminophen',name:'Acetaminophen',brand:'Tylenol',cat:'otc',
+    adult:{dose:'500-1000 mg',freq:'Every 4-6 hours',max:'3000 mg/day (4000 absolute max)',perKg:null},
+    child:{dosePerKg:15,freq:'Every 4-6 hours',maxPerKg:75,unit:'mg'},
+    infant:{dosePerKg:15,freq:'Every 4-6 hours',maxPerKg:60,unit:'mg'},
+    warn:'Liver damage above 4000 mg/day or with alcohol. Do NOT combine with other acetaminophen products. Liver failure from overdose is one of the most common causes of acute liver failure.',
+    notes:'Available as 325 mg and 500 mg tablets.'},
+  {id:'ibuprofen',name:'Ibuprofen',brand:'Advil/Motrin',cat:'otc',
+    adult:{dose:'200-400 mg',freq:'Every 4-6 hours',max:'1200 mg/day (OTC)',perKg:null},
+    child:{dosePerKg:10,freq:'Every 6-8 hours',maxPerKg:40,unit:'mg'},
+    infant:{dosePerKg:10,freq:'Every 6-8 hours',maxPerKg:40,unit:'mg'},
+    warn:'Take with food. Stomach bleeding and kidney damage with prolonged use. Avoid in dehydration, late pregnancy, or kidney disease.',
+    notes:'Available as 200 mg tablets. Children\'s liquid: 100mg/5ml.'},
+  {id:'diphenhydramine',name:'Diphenhydramine',brand:'Benadryl',cat:'otc',
+    adult:{dose:'25-50 mg',freq:'Every 4-6 hours',max:'300 mg/day',perKg:null},
+    child:{dosePerKg:1.25,freq:'Every 4-6 hours',maxPerKg:5,unit:'mg'},
+    infant:{dosePerKg:1,freq:'Every 6 hours',maxPerKg:4,unit:'mg'},
+    warn:'Causes drowsiness. Do not combine with alcohol or other sedatives. NOT a substitute for epinephrine in anaphylaxis.',
+    notes:'Available as 25 mg tablets/capsules. Children\'s liquid: 12.5mg/5ml.'},
+  {id:'loperamide',name:'Loperamide',brand:'Imodium',cat:'otc',
+    adult:{dose:'4 mg initially, then 2 mg after each loose stool',freq:'As needed',max:'16 mg/day',perKg:null},
+    child:{dosePerKg:null,freq:'',max:'',note:'6-8 yrs: 2mg then 1mg, max 4mg/day. 9-11 yrs: 2mg then 1mg, max 6mg/day'},
+    infant:{dosePerKg:null,freq:'',max:'',note:'NOT recommended for infants'},
+    warn:'Do NOT use for bloody diarrhea or diarrhea with high fever — these suggest dysentery. Stopping diarrhea traps the pathogen.',
+    notes:'Available as 2 mg caplets.'},
+  {id:'aspirin',name:'Aspirin',brand:'Aspirin',cat:'otc',
+    adult:{dose:'325-650 mg',freq:'Every 4-6 hours',max:'4000 mg/day. Heart attack: chew 325 mg immediately.',perKg:null},
+    child:{dosePerKg:null,freq:'',max:'',note:'DO NOT GIVE TO ANYONE UNDER 18 — risk of Reye\'s syndrome'},
+    infant:{dosePerKg:null,freq:'',max:'',note:'DO NOT GIVE TO CHILDREN'},
+    warn:'NEVER give to anyone under 18. Blood thinner — avoid before surgery or with active bleeding.',
+    notes:'Available as 325 mg tablets.'},
+  // Antibiotics
+  {id:'amoxicillin',name:'Amoxicillin',brand:'Fish Mox',cat:'abx',
+    adult:{dose:'500 mg',freq:'Every 8 hours',max:'7-10 days course',perKg:null},
+    child:{dosePerKg:8.3,freq:'Every 8 hours (25mg/kg/day ÷ 3)',maxPerKg:25,unit:'mg',duration:'7-10 days'},
+    infant:{dosePerKg:8.3,freq:'Every 8 hours',maxPerKg:25,unit:'mg',duration:'7-10 days'},
+    warn:'Do NOT use if allergic to penicillin. Use azithromycin instead.',
+    notes:'For: ear infections, sinus, dental, UTI, wound infections, pneumonia, strep throat.'},
+  {id:'ciprofloxacin',name:'Ciprofloxacin',brand:'Fish Flox',cat:'abx',
+    adult:{dose:'500 mg',freq:'Every 12 hours',max:'7-14 days course',perKg:null},
+    child:{dosePerKg:null,freq:'',max:'',note:'NOT for children under 18 — can damage growing cartilage'},
+    infant:{dosePerKg:null,freq:'',max:'',note:'NOT for children or infants'},
+    warn:'NOT for anyone under 18. Can cause tendon rupture — stop if tendon pain. Avoid with dairy products and antacids (take 2hrs before or 6hrs after).',
+    notes:'For: UTI, bacterial diarrhea, bone/joint infections, severe wound infections.'},
+  {id:'azithromycin',name:'Azithromycin',brand:'Fish Zithro',cat:'abx',
+    adult:{dose:'500 mg day 1, then 250 mg days 2-5',freq:'Once daily for 5 days',max:'',perKg:null},
+    child:{dosePerKg:10,freq:'Day 1: 10mg/kg, Days 2-5: 5mg/kg, once daily',maxPerKg:10,unit:'mg',duration:'5 days'},
+    infant:{dosePerKg:10,freq:'Day 1: 10mg/kg, Days 2-5: 5mg/kg',maxPerKg:10,unit:'mg',duration:'5 days'},
+    warn:'Good penicillin alternative for allergic patients.',
+    notes:'For: respiratory infections, sinus, ear, skin infections, some STIs.'},
+  {id:'metronidazole',name:'Metronidazole',brand:'Fish Zole',cat:'abx',
+    adult:{dose:'500 mg',freq:'Every 8 hours',max:'7-10 days course',perKg:null},
+    child:{dosePerKg:10,freq:'Every 8 hours (30mg/kg/day ÷ 3)',maxPerKg:30,unit:'mg',duration:'7-10 days'},
+    infant:{dosePerKg:7.5,freq:'Every 8 hours',maxPerKg:22.5,unit:'mg',duration:'7-10 days'},
+    warn:'NO ALCOHOL during treatment or for 48 hours after — causes violent nausea and vomiting.',
+    notes:'For: anaerobic infections, dental abscesses, giardia, amoebic dysentery, C. difficile.'},
+  {id:'cephalexin',name:'Cephalexin',brand:'Fish Flex',cat:'abx',
+    adult:{dose:'500 mg',freq:'Every 6 hours',max:'7-10 days course',perKg:null},
+    child:{dosePerKg:12.5,freq:'Every 6 hours (25-50mg/kg/day ÷ 4)',maxPerKg:50,unit:'mg',duration:'7-10 days'},
+    infant:{dosePerKg:12.5,freq:'Every 6 hours',maxPerKg:50,unit:'mg',duration:'7-10 days'},
+    warn:'~10% cross-reactivity with penicillin allergy. If penicillin allergy was severe (anaphylaxis), do NOT use.',
+    notes:'For: skin/soft tissue infections, wound infections, UTI, bone infections.'},
+  // Emergency
+  {id:'epinephrine',name:'Epinephrine',brand:'EpiPen',cat:'emerg',
+    adult:{dose:'0.3 mg (EpiPen)',freq:'Repeat every 5-15 min if symptoms persist',max:'',perKg:null},
+    child:{dosePerKg:0.01,freq:'Repeat every 5-15 min if symptoms persist',maxPerKg:0.01,unit:'mg',note:'Child >30kg: 0.3mg. Child 15-30kg: 0.15mg'},
+    infant:{dosePerKg:0.01,freq:'Repeat every 5-15 min',maxPerKg:0.01,unit:'mg',note:'Use 1:1000 concentration IM in outer thigh'},
+    warn:'For ANAPHYLAXIS ONLY. Inject into outer thigh muscle (through clothing if needed). Hold 10 seconds. Seek emergency care immediately.',
+    notes:'EpiPen: 0.3mg adult, 0.15mg child (Jr). Manual: 0.01mg/kg of 1:1,000 solution IM.'},
+];
+
+let selectedMed = null;
+
+function buildMedLists(){
+  ['otc','abx','emerg'].forEach(cat=>{
+    const list=document.getElementById(cat+'-list');
+    MEDS.filter(m=>m.cat===cat).forEach(m=>{
+      const btn=document.createElement('div');
+      btn.className='med-btn';
+      btn.id='btn-'+m.id;
+      btn.innerHTML=`<div class="med-name">${m.name}</div><div class="med-type">${m.brand}</div>`;
+      btn.onclick=()=>selectMed(m.id);
+      list.appendChild(btn);
+    });
+  });
+}
+
+function selectMed(id){
+  document.querySelectorAll('.med-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('btn-'+id).classList.add('active');
+  selectedMed=id;
+  calculate();
+}
+
+function calculate(){
+  if(!selectedMed)return;
+  const med=MEDS.find(m=>m.id===selectedMed);
+  const weightVal=parseFloat(document.getElementById('weight').value)||0;
+  const weightUnit=document.getElementById('weight-unit').value;
+  const ageGroup=document.getElementById('age').value;
+  const kg=weightUnit==='lbs'?weightVal*0.4536:weightVal;
+  const lbs=weightUnit==='kg'?weightVal*2.205:weightVal;
+
+  const panel=document.getElementById('result-panel');
+  panel.style.display='block';
+  document.getElementById('result-title').textContent=med.name+' ('+med.brand+') — Dosage';
+
+  const info=med[ageGroup];
+  let html='';
+
+  if(ageGroup==='adult'){
+    html+=`<div class="dose-line">${info.dose}</div>`;
+    html+=`<div class="dose-detail">Frequency: ${info.freq}<br>Maximum: ${info.max}</div>`;
+  }else{
+    if(info.note && !info.dosePerKg){
+      html+=`<div class="dose-line" style="color:#f59e0b">${info.note}</div>`;
+    }else if(info.dosePerKg){
+      const singleDose=Math.round(info.dosePerKg*kg*10)/10;
+      const maxDaily=info.maxPerKg?Math.round(info.maxPerKg*kg*10)/10:'—';
+      html+=`<div class="dose-line">Single dose: ${singleDose} ${info.unit}</div>`;
+      html+=`<div class="dose-detail">`;
+      html+=`Patient weight: ${kg.toFixed(1)} kg (${lbs.toFixed(0)} lbs)<br>`;
+      html+=`Calculation: ${info.dosePerKg} ${info.unit}/kg × ${kg.toFixed(1)} kg = ${singleDose} ${info.unit}<br>`;
+      html+=`Frequency: ${info.freq}<br>`;
+      if(maxDaily!=='—')html+=`Maximum daily: ${maxDaily} ${info.unit}/day<br>`;
+      if(info.duration)html+=`Duration: ${info.duration}<br>`;
+      if(info.note)html+=`<br><strong>${info.note}</strong>`;
+      html+=`</div>`;
+    }
+  }
+
+  if(med.notes){
+    html+=`<div class="dose-detail" style="margin-top:10px;border-top:1px solid #2e2f3a;padding-top:10px">${med.notes}</div>`;
+  }
+  if(med.warn){
+    html+=`<div class="dose-warn">⚠ ${med.warn}</div>`;
+  }
+
+  document.getElementById('result-card').innerHTML=html;
+}
+
+buildMedLists();
+</script>
+</body>
+</html>

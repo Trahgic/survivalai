@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Celestial Navigation — SurvivalAI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0b10;color:#d4d4d8;min-height:100vh;padding:16px}
+h1{font-size:1.4em;color:#e4e4e7;margin-bottom:4px}
+.subtitle{color:#71717a;font-size:.85em;margin-bottom:16px}
+.controls{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;align-items:end}
+.field{min-width:120px}
+.field label{display:block;color:#a1a1aa;font-size:.75em;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.field input,.field select{padding:8px 10px;background:#1a1b22;border:1px solid #2e2f3a;border-radius:6px;color:#e4e4e7;font-size:.9em;outline:none;width:100%}
+.field input:focus,.field select:focus{border-color:#2563eb}
+.chart-container{position:relative;width:100%;max-width:700px;margin:0 auto}
+canvas{width:100%;border-radius:50%;background:radial-gradient(ellipse at center,#0a0d1a 0%,#060812 70%,#020308 100%);cursor:crosshair}
+.info-panel{background:#1a1b22;border:1px solid #2e2f3a;border-radius:10px;padding:16px;margin-top:16px}
+.info-panel h2{font-size:.85em;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.guide-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.guide-card{background:#0f1115;border:1px solid #2e2f3a;border-radius:8px;padding:14px}
+.guide-card h3{color:#60a5fa;font-size:.9em;margin-bottom:6px}
+.guide-card p{color:#a1a1aa;font-size:.83em;line-height:1.5}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0;font-size:.8em;color:#71717a}
+.legend span{display:flex;align-items:center;gap:4px}
+.legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.star-info{position:absolute;background:#1a1b22ee;border:1px solid #2e2f3a;border-radius:6px;padding:8px 12px;pointer-events:none;display:none;font-size:.82em;z-index:10}
+.star-info .sname{color:#fbbf24;font-weight:600}
+.star-info .sdetail{color:#a1a1aa;font-size:.85em}
+</style>
+</head>
+<body>
+<h1>Celestial Navigation Aid</h1>
+<p class="subtitle">Interactive star chart — find North using the night sky</p>
+
+<div class="controls">
+  <div class="field"><label>Latitude</label><input type="number" id="lat" value="40" min="-90" max="90" step="1" onchange="draw()"></div>
+  <div class="field"><label>Month</label><select id="month" onchange="draw()"><option value="0">January</option><option value="1">February</option><option value="2">March</option><option value="3" selected>April</option><option value="4">May</option><option value="5">June</option><option value="6">July</option><option value="7">August</option><option value="8">September</option><option value="9">October</option><option value="10">November</option><option value="11">December</option></select></div>
+  <div class="field"><label>Time</label><select id="hour" onchange="draw()"><option value="18">6 PM</option><option value="19">7 PM</option><option value="20">8 PM</option><option value="21" selected>9 PM</option><option value="22">10 PM</option><option value="23">11 PM</option><option value="0">Midnight</option><option value="1">1 AM</option><option value="2">2 AM</option><option value="3">3 AM</option><option value="4">4 AM</option><option value="5">5 AM</option></select></div>
+</div>
+
+<div class="legend">
+  <span><span class="legend-dot" style="background:#fbbf24"></span> Navigation stars</span>
+  <span><span class="legend-dot" style="background:#94a3b8"></span> Other stars</span>
+  <span><span class="legend-dot" style="background:#374151;width:12px;border-radius:0;height:1px"></span> Constellation lines</span>
+  <span style="color:#60a5fa">N/S/E/W = Cardinal directions</span>
+</div>
+
+<div class="chart-container">
+  <canvas id="sky" width="700" height="700"></canvas>
+  <div class="star-info" id="star-info"><div class="sname"></div><div class="sdetail"></div></div>
+</div>
+
+<div class="info-panel">
+  <h2>Navigation Methods</h2>
+  <div class="guide-grid">
+    <div class="guide-card">
+      <h3>Finding North — Polaris</h3>
+      <p>Find the Big Dipper. The two stars at the end of the "cup" (Dubhe and Merak) point directly to Polaris. Extend the line between them about 5× their spacing. Polaris sits within 1° of true north — directly above the North Pole. Its altitude above the horizon equals your latitude.</p>
+    </div>
+    <div class="guide-card">
+      <h3>Finding South — Southern Cross</h3>
+      <p>Below latitude 25°N, find the Southern Cross (Crux). Extend the long axis of the cross 4.5× its length toward the horizon. That point is due south. Or: find where a line from the Cross intersects a perpendicular from the midpoint of the Pointer Stars (Alpha and Beta Centauri).</p>
+    </div>
+    <div class="guide-card">
+      <h3>Latitude from Polaris</h3>
+      <p>Measure Polaris's angle above the horizon using your fist at arm's length (≈10° per fist width). That angle equals your latitude. Example: Polaris at 4 fist-widths above the horizon ≈ 40°N latitude.</p>
+    </div>
+    <div class="guide-card">
+      <h3>East-West from Star Movement</h3>
+      <p>Watch any star for 15 minutes. If it rises — you're facing east. If it falls — west. If it moves right — south. If it moves left — north. Stars near the horizon show this most clearly.</p>
+    </div>
+    <div class="guide-card">
+      <h3>Time from Stars</h3>
+      <p>The Big Dipper rotates counter-clockwise around Polaris once every 24 hours (actually 23h 56m). If you know the date and the Dipper's position, you can estimate the time within about 30 minutes using a star clock method.</p>
+    </div>
+    <div class="guide-card">
+      <h3>Fist Measurements</h3>
+      <p>At arm's length: pinky tip ≈ 1° · three middle fingers ≈ 5° · closed fist ≈ 10° · spread hand (thumb to pinky) ≈ 20°. Use these to measure angular distances between stars and above the horizon.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// Simplified star catalog: [name, RA(hours), Dec(degrees), magnitude, constellation]
+const stars = [
+  // Ursa Major (Big Dipper)
+  ['Dubhe',11.06,61.75,1.8,'UMa'],['Merak',11.02,56.38,2.3,'UMa'],['Phecda',11.90,53.69,2.4,'UMa'],
+  ['Megrez',12.26,57.03,3.3,'UMa'],['Alioth',12.90,55.96,1.8,'UMa'],['Mizar',13.40,54.93,2.1,'UMa'],
+  ['Alkaid',13.79,49.31,1.9,'UMa'],
+  // Ursa Minor (Little Dipper)
+  ['Polaris',2.53,89.26,2.0,'UMi'],['Kochab',14.85,74.16,2.1,'UMi'],['Pherkad',15.35,71.83,3.0,'UMi'],
+  ['Yildun',17.54,86.59,4.4,'UMi'],['Urodelus',16.29,75.76,4.2,'UMi'],
+  // Orion
+  ['Betelgeuse',5.92,7.41,0.5,'Ori'],['Rigel',5.24,-8.20,0.1,'Ori'],['Bellatrix',5.42,6.35,1.6,'Ori'],
+  ['Mintaka',5.53,-0.30,2.2,'Ori'],['Alnilam',5.60,-1.20,1.7,'Ori'],['Alnitak',5.68,-1.94,1.7,'Ori'],
+  ['Saiph',5.80,-9.67,2.1,'Ori'],
+  // Cassiopeia
+  ['Schedar',0.68,56.54,2.2,'Cas'],['Caph',0.15,59.15,2.3,'Cas'],['Gamma Cas',0.95,60.72,2.5,'Cas'],
+  ['Ruchbah',1.43,60.24,2.7,'Cas'],['Segin',1.91,63.67,3.4,'Cas'],
+  // Bright stars
+  ['Sirius',6.75,-16.72,-1.5,'CMa'],['Vega',18.62,38.78,0.0,'Lyr'],['Arcturus',14.26,19.18,-0.1,'Boo'],
+  ['Capella',5.28,46.00,0.1,'Aur'],['Procyon',7.66,5.22,0.4,'CMi'],['Altair',19.85,8.87,0.8,'Aql'],
+  ['Aldebaran',4.60,16.51,0.9,'Tau'],['Spica',13.42,-11.16,1.0,'Vir'],['Antares',16.49,-26.43,1.1,'Sco'],
+  ['Deneb',20.69,45.28,1.3,'Cyg'],['Regulus',10.14,11.97,1.4,'Leo'],['Fomalhaut',22.96,-29.62,1.2,'PsA'],
+  ['Canopus',6.40,-52.70,-0.7,'Car'],['Achernar',1.63,-57.24,0.5,'Eri'],
+  // Southern Cross
+  ['Acrux',12.44,-63.10,0.8,'Cru'],['Gacrux',12.52,-57.11,1.6,'Cru'],['Mimosa',12.80,-59.69,1.3,'Cru'],['Delta Cru',12.25,-58.75,2.8,'Cru'],
+  // Pointers
+  ['Alpha Cen',14.66,-60.83,-0.0,'Cen'],['Beta Cen',14.06,-60.37,0.6,'Cen'],
+  // Scorpius tail
+  ['Shaula',17.56,-37.10,1.6,'Sco'],
+  // Leo
+  ['Denebola',11.82,14.57,2.1,'Leo'],
+  // Cygnus
+  ['Sadr',20.37,40.26,2.2,'Cyg'],['Gienah Cyg',20.77,33.97,2.5,'Cyg'],
+  // Gemini
+  ['Castor',7.58,31.89,1.6,'Gem'],['Pollux',7.76,28.03,1.1,'Gem'],
+];
+
+// Constellation lines [star1_name, star2_name]
+const lines = [
+  // Big Dipper
+  ['Dubhe','Merak'],['Merak','Phecda'],['Phecda','Megrez'],['Megrez','Dubhe'],
+  ['Megrez','Alioth'],['Alioth','Mizar'],['Mizar','Alkaid'],
+  // Little Dipper
+  ['Polaris','Yildun'],['Yildun','Urodelus'],['Urodelus','Kochab'],['Kochab','Pherkad'],
+  // Orion
+  ['Betelgeuse','Bellatrix'],['Bellatrix','Mintaka'],['Mintaka','Alnilam'],['Alnilam','Alnitak'],
+  ['Alnitak','Saiph'],['Saiph','Rigel'],['Rigel','Mintaka'],['Betelgeuse','Alnitak'],
+  // Cassiopeia W
+  ['Caph','Schedar'],['Schedar','Gamma Cas'],['Gamma Cas','Ruchbah'],['Ruchbah','Segin'],
+  // Southern Cross
+  ['Acrux','Gacrux'],['Mimosa','Delta Cru'],
+  // Cygnus cross
+  ['Deneb','Sadr'],['Sadr','Gienah Cyg'],['Sadr','Altair'],
+  // Pointer to Polaris
+  ['Dubhe','Polaris'],
+  // Summer triangle
+  ['Vega','Deneb'],['Vega','Altair'],['Altair','Deneb'],
+  // Gemini
+  ['Castor','Pollux'],
+];
+
+const canvas = document.getElementById('sky');
+const ctx = canvas.getContext('2d');
+const W = 700, CX = W/2, CY = W/2, R = W/2 - 30;
+
+function toRad(d){return d*Math.PI/180;}
+function hourAngle(ra, month, hour){
+  // Local Sidereal Time approximation
+  const lst = (month * 2 + hour + 6.6) % 24;
+  return (lst - ra) * 15; // degrees
+}
+
+function project(ra, dec, lat, month, hour){
+  const ha = toRad(hourAngle(ra, parseInt(month), parseInt(hour)));
+  const d = toRad(dec);
+  const l = toRad(lat);
+  // altitude
+  const alt = Math.asin(Math.sin(l)*Math.sin(d) + Math.cos(l)*Math.cos(d)*Math.cos(ha));
+  if(alt < 0) return null; // below horizon
+  // azimuth
+  let az = Math.atan2(-Math.sin(ha)*Math.cos(d), Math.cos(l)*Math.sin(d) - Math.sin(l)*Math.cos(d)*Math.cos(ha));
+  // Stereographic projection
+  const r = R * Math.cos(alt) / (1 + Math.sin(alt));
+  // Azimuth: 0=N, clockwise. Canvas: N at top
+  const x = CX + r * Math.sin(az);
+  const y = CY - r * Math.cos(az);
+  return {x, y, alt: alt*180/Math.PI};
+}
+
+let projected = [];
+
+function draw(){
+  const lat = parseFloat(document.getElementById('lat').value) || 40;
+  const month = document.getElementById('month').value;
+  const hour = document.getElementById('hour').value;
+  
+  ctx.clearRect(0, 0, W, W);
+  
+  // Background circle
+  ctx.beginPath(); ctx.arc(CX, CY, R+2, 0, Math.PI*2);
+  ctx.fillStyle = '#060812'; ctx.fill();
+  ctx.strokeStyle = '#1e2030'; ctx.lineWidth = 1; ctx.stroke();
+  
+  // Horizon circle
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, Math.PI*2);
+  ctx.strokeStyle = '#2e3450'; ctx.lineWidth = 1.5; ctx.stroke();
+  
+  // Grid lines (altitude circles)
+  for(let a = 30; a <= 60; a += 30){
+    const gr = R * Math.cos(toRad(a)) / (1 + Math.sin(toRad(a)));
+    ctx.beginPath(); ctx.arc(CX, CY, gr, 0, Math.PI*2);
+    ctx.strokeStyle = '#151825'; ctx.lineWidth = 0.5; ctx.stroke();
+  }
+  
+  // Cardinal directions
+  ctx.fillStyle = '#60a5fa'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('N', CX, CY - R - 8);
+  ctx.fillText('S', CX, CY + R + 18);
+  ctx.fillText('E', CX + R + 14, CY + 5);
+  ctx.fillText('W', CX - R - 14, CY + 5);
+  
+  // Project all stars
+  projected = [];
+  stars.forEach(s => {
+    const p = project(s[1], s[2], lat, month, hour);
+    projected.push({name: s[0], pos: p, mag: s[3], con: s[4]});
+  });
+  
+  // Draw constellation lines
+  ctx.strokeStyle = '#253050'; ctx.lineWidth = 0.8;
+  lines.forEach(([a, b]) => {
+    const sa = projected.find(s => s.name === a);
+    const sb = projected.find(s => s.name === b);
+    if(sa && sa.pos && sb && sb.pos){
+      ctx.beginPath(); ctx.moveTo(sa.pos.x, sa.pos.y); ctx.lineTo(sb.pos.x, sb.pos.y); ctx.stroke();
+    }
+  });
+  
+  // Pointer line to Polaris (dashed)
+  const dubhe = projected.find(s=>s.name==='Dubhe');
+  const polaris = projected.find(s=>s.name==='Polaris');
+  if(dubhe && dubhe.pos && polaris && polaris.pos){
+    ctx.strokeStyle = '#f5920044'; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(dubhe.pos.x, dubhe.pos.y); ctx.lineTo(polaris.pos.x, polaris.pos.y); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  
+  // Draw stars
+  const navStars = ['Polaris','Sirius','Vega','Arcturus','Capella','Altair','Deneb','Betelgeuse','Rigel','Aldebaran','Spica','Antares','Procyon','Regulus','Canopus','Fomalhaut','Acrux','Alpha Cen','Dubhe','Merak'];
+  
+  projected.forEach(s => {
+    if(!s.pos) return;
+    const isNav = navStars.includes(s.name);
+    const size = Math.max(1, 4 - s.mag * 0.8);
+    
+    ctx.beginPath(); ctx.arc(s.pos.x, s.pos.y, size, 0, Math.PI*2);
+    if(s.name === 'Polaris'){
+      ctx.fillStyle = '#f59e0b';
+      // Draw crosshair around Polaris
+      ctx.fill();
+      ctx.strokeStyle = '#f59e0b44'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.arc(s.pos.x, s.pos.y, 12, 0, Math.PI*2); ctx.stroke();
+    } else if(isNav){
+      ctx.fillStyle = '#fbbf24';
+      ctx.fill();
+    } else {
+      ctx.fillStyle = s.mag < 2 ? '#c4c8d4' : '#6b7280';
+      ctx.fill();
+    }
+  });
+  
+  // Labels for bright/nav stars
+  ctx.font = '10px sans-serif'; ctx.textAlign = 'left';
+  projected.forEach(s => {
+    if(!s.pos || s.mag > 1.5) return;
+    const isNav = navStars.includes(s.name);
+    ctx.fillStyle = isNav ? '#fbbf2488' : '#6b728088';
+    ctx.fillText(s.name, s.pos.x + 6, s.pos.y - 4);
+  });
+}
+
+// Hover info
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleX;
+  
+  let closest = null, minD = 15;
+  projected.forEach(s => {
+    if(!s.pos) return;
+    const d = Math.hypot(s.pos.x - mx, s.pos.y - my);
+    if(d < minD){ minD = d; closest = s; }
+  });
+  
+  const info = document.getElementById('star-info');
+  if(closest){
+    info.style.display = 'block';
+    info.style.left = (e.clientX - canvas.parentElement.getBoundingClientRect().left + 12) + 'px';
+    info.style.top = (e.clientY - canvas.parentElement.getBoundingClientRect().top - 30) + 'px';
+    info.querySelector('.sname').textContent = closest.name;
+    info.querySelector('.sdetail').textContent = `Mag ${closest.mag} · ${closest.con} · Alt ${closest.pos.alt.toFixed(1)}°`;
+  } else {
+    info.style.display = 'none';
+  }
+});
+canvas.addEventListener('mouseleave', () => { document.getElementById('star-info').style.display = 'none'; });
+
+draw();
+</script>
+</body>
+</html>

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Radio Frequency Reference — SurvivalAI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f1115;color:#d4d4d8;min-height:100vh;padding:16px}
+h1{font-size:1.4em;color:#e4e4e7;margin-bottom:4px}
+.subtitle{color:#71717a;font-size:.85em;margin-bottom:20px}
+.search-bar{width:100%;padding:10px 14px;background:#1a1b22;border:1px solid #2e2f3a;border-radius:8px;color:#e4e4e7;font-size:1em;outline:none;margin-bottom:16px}
+.search-bar:focus{border-color:#2563eb}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.tab{padding:8px 14px;background:#1e1f26;border:1px solid #2e2f3a;border-radius:6px;color:#a1a1aa;cursor:pointer;font-size:.82em;transition:all .15s}
+.tab:hover{background:#27282f}
+.tab.active{background:#2563eb;border-color:#2563eb;color:#fff}
+.section{display:none;background:#1a1b22;border:1px solid #2e2f3a;border-radius:10px;padding:16px;margin-bottom:16px}
+.section.active{display:block}
+.section h2{font-size:.85em;color:#60a5fa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.section p.desc{color:#71717a;font-size:.83em;margin-bottom:12px;line-height:1.5}
+table{width:100%;border-collapse:collapse;font-size:.85em}
+th{text-align:left;padding:8px 10px;background:#0f1115;color:#a1a1aa;font-size:.78em;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #2e2f3a;position:sticky;top:0}
+td{padding:8px 10px;border-bottom:1px solid #1e1f26;color:#d4d4d8}
+tr:hover td{background:#1e1f26}
+.freq{color:#34d399;font-family:'Courier New',monospace}
+.emerg{color:#f87171;font-weight:600}
+.note{color:#71717a;font-size:.82em}
+.highlight{background:#2563eb22}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.75em;font-weight:600}
+.badge-free{background:#064e3b;color:#34d399}
+.badge-license{background:#1e3a5f;color:#60a5fa}
+.badge-emerg{background:#450a0a;color:#f87171}
+.phonetic{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:4px;margin-top:12px}
+.phonetic-item{background:#0f1115;border:1px solid #2e2f3a;border-radius:4px;padding:6px 10px;display:flex;gap:8px;align-items:center}
+.phonetic-letter{font-weight:700;color:#e4e4e7;width:20px}
+.phonetic-word{color:#a1a1aa;font-size:.85em}
+</style>
+</head>
+<body>
+<h1>Radio Frequency Reference</h1>
+<p class="subtitle">Band plans, channels, and emergency frequencies — offline</p>
+
+<input class="search-bar" id="search" placeholder="Search frequencies, channels, or services..." oninput="filterAll()">
+
+<div class="tabs">
+<div class="tab active" onclick="showSec('emerg')">Emergency</div>
+<div class="tab" onclick="showSec('frs')">FRS</div>
+<div class="tab" onclick="showSec('gmrs')">GMRS</div>
+<div class="tab" onclick="showSec('cb')">CB</div>
+<div class="tab" onclick="showSec('murs')">MURS</div>
+<div class="tab" onclick="showSec('ham')">Ham Radio</div>
+<div class="tab" onclick="showSec('noaa')">NOAA Weather</div>
+<div class="tab" onclick="showSec('marine')">Marine VHF</div>
+<div class="tab" onclick="showSec('phonetic')">Phonetic Alphabet</div>
+</div>
+
+<div id="sec-emerg" class="section active">
+<h2>Emergency Frequencies</h2>
+<p class="desc">Monitor these first in any emergency. These are the frequencies most likely to have traffic.</p>
+<table><thead><tr><th>Service</th><th>Frequency</th><th>Channel</th><th>Notes</th></tr></thead><tbody>
+<tr class="highlight"><td><span class="badge badge-emerg">EMERGENCY</span> CB</td><td class="freq">27.065 MHz</td><td>Ch 9</td><td>FCC-designated emergency channel</td></tr>
+<tr class="highlight"><td><span class="badge badge-emerg">EMERGENCY</span> FRS</td><td class="freq">462.5625 MHz</td><td>Ch 1</td><td>Default FRS calling/emergency</td></tr>
+<tr class="highlight"><td><span class="badge badge-emerg">EMERGENCY</span> GMRS</td><td class="freq">462.675 MHz</td><td>Ch 20</td><td>Recognized GMRS emergency calling</td></tr>
+<tr class="highlight"><td><span class="badge badge-emerg">EMERGENCY</span> Marine</td><td class="freq">156.800 MHz</td><td>Ch 16</td><td>International distress — monitored globally</td></tr>
+<tr><td><span class="badge badge-license">HAM</span> 2m Simplex</td><td class="freq">146.520 MHz</td><td>—</td><td>National VHF calling frequency</td></tr>
+<tr><td><span class="badge badge-license">HAM</span> 70cm Simplex</td><td class="freq">446.000 MHz</td><td>—</td><td>National UHF calling frequency</td></tr>
+<tr><td><span class="badge badge-license">HAM</span> 40m Emergency</td><td class="freq">7.230 MHz</td><td>—</td><td>ARES disaster/emergency net (LSB)</td></tr>
+<tr><td><span class="badge badge-license">HAM</span> 20m Emergency</td><td class="freq">14.300 MHz</td><td>—</td><td>International emergency net (USB)</td></tr>
+<tr><td>PLB / EPIRB</td><td class="freq">406 MHz</td><td>—</td><td>Satellite-monitored distress beacons</td></tr>
+</tbody></table>
+</div>
+
+<div id="sec-frs" class="section">
+<h2>FRS — Family Radio Service <span class="badge badge-free">No License</span></h2>
+<p class="desc">Low-power handheld radios. Range: 0.5–2 miles typical. Channels 1–7 and 15–22 share frequencies with GMRS at 2W max. Channels 8–14 are FRS-only at 0.5W.</p>
+<table id="frs-table"><thead><tr><th>Ch</th><th>Frequency</th><th>Power</th><th>Notes</th></tr></thead><tbody></tbody></table>
+</div>
+
+<div id="sec-gmrs" class="section">
+<h2>GMRS — General Mobile Radio Service <span class="badge badge-license">License (No Exam)</span></h2>
+<p class="desc">Same channels as FRS at higher power (up to 50W mobile). License covers your immediate family. Repeater capable for 20+ mile range. $35 FCC license, no exam, 10-year term.</p>
+<table><thead><tr><th>Feature</th><th>Detail</th></tr></thead><tbody>
+<tr><td>Channels</td><td>Same 22 channels as FRS, plus 8 repeater inputs</td></tr>
+<tr><td>Max power (handheld)</td><td>5W on shared channels</td></tr>
+<tr><td>Max power (mobile/base)</td><td>50W on channels 15-22</td></tr>
+<tr><td>Repeater input frequencies</td><td class="freq">467.5500 – 467.7250 MHz</td></tr>
+<tr><td>Repeater offset</td><td>+5 MHz</td></tr>
+<tr><td class="emerg">Emergency/calling channel</td><td class="emerg freq">Ch 20 — 462.675 MHz</td></tr>
+</tbody></table>
+</div>
+
+<div id="sec-cb" class="section">
+<h2>CB — Citizens Band <span class="badge badge-free">No License</span></h2>
+<p class="desc">27 MHz AM radio. 4W max. Range: 2–10 miles. Widely available, no license needed.</p>
+<table id="cb-table"><thead><tr><th>Ch</th><th>Frequency</th><th>Notes</th></tr></thead><tbody></tbody></table>
+</div>
+
+<div id="sec-murs" class="section">
+<h2>MURS — Multi-Use Radio Service <span class="badge badge-free">No License</span></h2>
+<p class="desc">VHF frequencies. 2W max. Range: 1–5 miles. Less crowded than FRS because fewer people use it.</p>
+<table><thead><tr><th>Ch</th><th>Frequency</th><th>Bandwidth</th></tr></thead><tbody>
+<tr><td>1</td><td class="freq">151.820 MHz</td><td>11.25 kHz</td></tr>
+<tr><td>2</td><td class="freq">151.880 MHz</td><td>11.25 kHz</td></tr>
+<tr><td>3</td><td class="freq">151.940 MHz</td><td>11.25 kHz</td></tr>
+<tr><td>4</td><td class="freq">154.570 MHz</td><td>20 kHz</td></tr>
+<tr><td>5</td><td class="freq">154.600 MHz</td><td>20 kHz</td></tr>
+</tbody></table>
+</div>
+
+<div id="sec-ham" class="section">
+<h2>Amateur (Ham) Radio Bands <span class="badge badge-license">License Required (Exam)</span></h2>
+<p class="desc">Much greater range. HF bands reach worldwide. Technician license (easiest) gives VHF/UHF access. General license adds most HF bands.</p>
+<table><thead><tr><th>Band</th><th>Frequency Range</th><th>Best Time</th><th>Typical Range</th><th>Mode</th></tr></thead><tbody>
+<tr><td>80m</td><td class="freq">3.5–4.0 MHz</td><td>Night</td><td>50–500 mi</td><td>LSB</td></tr>
+<tr><td>40m</td><td class="freq">7.0–7.3 MHz</td><td>Evening/night</td><td>100–2,000 mi</td><td>LSB</td></tr>
+<tr><td>20m</td><td class="freq">14.0–14.35 MHz</td><td>Day</td><td>500–worldwide</td><td>USB</td></tr>
+<tr><td>15m</td><td class="freq">21.0–21.45 MHz</td><td>Day</td><td>500–worldwide</td><td>USB</td></tr>
+<tr><td>10m</td><td class="freq">28.0–29.7 MHz</td><td>Day (solar max)</td><td>Sporadic</td><td>USB/FM</td></tr>
+<tr><td>2m</td><td class="freq">144–148 MHz</td><td>Anytime</td><td>5–50 mi (repeater)</td><td>FM</td></tr>
+<tr><td>70cm</td><td class="freq">420–450 MHz</td><td>Anytime</td><td>5–30 mi (repeater)</td><td>FM</td></tr>
+</tbody></table>
+<p class="desc" style="margin-top:14px"><strong>Repeater offsets:</strong> 2m = ±600 kHz · 70cm = ±5 MHz<br><strong>Common CTCSS tones:</strong> 100.0, 110.9, 127.3, 141.3, 162.2 Hz</p>
+</div>
+
+<div id="sec-noaa" class="section">
+<h2>NOAA Weather Radio</h2>
+<p class="desc">Continuous broadcast. Hazard alerts. Listen on any weather radio or scanner.</p>
+<table><thead><tr><th>Ch</th><th>Frequency</th></tr></thead><tbody>
+<tr><td>1</td><td class="freq">162.400 MHz</td></tr>
+<tr><td>2</td><td class="freq">162.425 MHz</td></tr>
+<tr><td>3</td><td class="freq">162.450 MHz</td></tr>
+<tr><td>4</td><td class="freq">162.475 MHz</td></tr>
+<tr><td>5</td><td class="freq">162.500 MHz</td></tr>
+<tr><td>6</td><td class="freq">162.525 MHz</td></tr>
+<tr><td>7</td><td class="freq">162.550 MHz</td></tr>
+</tbody></table>
+</div>
+
+<div id="sec-marine" class="section">
+<h2>Marine VHF</h2>
+<p class="desc">For use near navigable waterways.</p>
+<table><thead><tr><th>Ch</th><th>Frequency</th><th>Use</th></tr></thead><tbody>
+<tr class="highlight"><td class="emerg">16</td><td class="freq emerg">156.800 MHz</td><td class="emerg">Distress, safety, calling — internationally monitored</td></tr>
+<tr><td>9</td><td class="freq">156.450 MHz</td><td>Secondary calling channel</td></tr>
+<tr><td>22A</td><td class="freq">157.100 MHz</td><td>Coast Guard liaison (US)</td></tr>
+<tr><td>13</td><td class="freq">156.650 MHz</td><td>Bridge-to-bridge navigation safety</td></tr>
+<tr><td>6</td><td class="freq">156.300 MHz</td><td>Intership safety</td></tr>
+</tbody></table>
+</div>
+
+<div id="sec-phonetic" class="section">
+<h2>NATO Phonetic Alphabet</h2>
+<p class="desc">Use for spelling over radio to avoid confusion.</p>
+<div class="phonetic" id="phonetic-grid"></div>
+</div>
+
+<script>
+// FRS channels
+const frsData=[
+[1,462.5625,2,'Shared with GMRS — common calling channel'],[2,462.5875,2,'Shared with GMRS'],[3,462.6125,2,'Shared'],[4,462.6375,2,'Shared'],[5,462.6625,2,'Shared'],[6,462.6875,2,'Shared'],[7,462.7125,2,'Shared'],
+[8,467.5625,0.5,'FRS only'],[9,467.5875,0.5,'FRS only'],[10,467.6125,0.5,'FRS only'],[11,467.6375,0.5,'FRS only'],[12,467.6625,0.5,'FRS only'],[13,467.6875,0.5,'FRS only'],[14,467.7125,0.5,'FRS only'],
+[15,462.5500,2,'Shared'],[16,462.5750,2,'Shared'],[17,462.6000,2,'Shared'],[18,462.6250,2,'Shared'],[19,462.6500,2,'Shared'],[20,462.6750,2,'Shared — GMRS emergency/calling'],[21,462.7000,2,'Shared'],[22,462.7250,2,'Shared']
+];
+const frsBody=document.querySelector('#frs-table tbody');
+frsData.forEach(([ch,freq,pwr,note])=>{
+  const tr=document.createElement('tr');
+  if(ch===1)tr.classList.add('highlight');
+  tr.innerHTML=`<td>${ch}</td><td class="freq">${freq.toFixed(4)} MHz</td><td>${pwr}W</td><td class="note">${note}</td>`;
+  frsBody.appendChild(tr);
+});
+
+// CB channels
+const cbData=[[1,26.965],[2,26.975],[3,26.985],[4,27.005],[5,27.015],[6,27.025],[7,27.035],[8,27.055],[9,27.065,'Emergency — FCC designated'],[10,27.075],[11,27.085],[12,27.105],[13,27.115],[14,27.125,'Common calling channel'],[15,27.135],[16,27.155],[17,27.165],[18,27.175],[19,27.185,'Trucker / highway channel — most monitored'],[20,27.205],[21,27.215],[22,27.225],[23,27.255],[24,27.235],[25,27.245],[26,27.265],[27,27.275],[28,27.285],[29,27.295],[30,27.305],[31,27.315],[32,27.325],[33,27.335],[34,27.345],[35,27.355],[36,27.365],[37,27.375],[38,27.385],[39,27.395],[40,27.405]];
+const cbBody=document.querySelector('#cb-table tbody');
+cbData.forEach(row=>{
+  const tr=document.createElement('tr');
+  const note=row[2]||'';
+  if(row[0]===9||row[0]===19)tr.classList.add('highlight');
+  tr.innerHTML=`<td>${row[0]}</td><td class="freq">${row[1].toFixed(3)} MHz</td><td class="note">${note}</td>`;
+  cbBody.appendChild(tr);
+});
+
+// Phonetic
+const phonetic='Alpha Bravo Charlie Delta Echo Foxtrot Golf Hotel India Juliet Kilo Lima Mike November Oscar Papa Quebec Romeo Sierra Tango Uniform Victor Whiskey X-ray Yankee Zulu'.split(' ');
+const pgrid=document.getElementById('phonetic-grid');
+phonetic.forEach((word,i)=>{
+  const d=document.createElement('div');d.className='phonetic-item';
+  d.innerHTML=`<span class="phonetic-letter">${String.fromCharCode(65+i)}</span><span class="phonetic-word">${word}</span>`;
+  pgrid.appendChild(d);
+});
+// Numbers
+'Zero One Two Three Four Five Six Seven Eight Niner'.split(' ').forEach((word,i)=>{
+  const d=document.createElement('div');d.className='phonetic-item';
+  d.innerHTML=`<span class="phonetic-letter">${i}</span><span class="phonetic-word">${word}</span>`;
+  pgrid.appendChild(d);
+});
+
+function showSec(id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('sec-'+id).classList.add('active');
+}
+
+function filterAll(){
+  const q=document.getElementById('search').value.toLowerCase();
+  document.querySelectorAll('.section tbody tr').forEach(tr=>{
+    tr.style.display=tr.textContent.toLowerCase().includes(q)?'':'none';
+  });
+}
+</script>
+</body>
+</html>

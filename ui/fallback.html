@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SurvivalAI — Fallback Search</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f1115;color:#d4d4d8;min-height:100vh;padding:16px}
+h1{font-size:1.4em;color:#e4e4e7;margin-bottom:4px}
+.subtitle{color:#71717a;font-size:.85em;margin-bottom:16px}
+.notice{background:#1e3a5f;border:1px solid #2563eb;border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#93c5fd;font-size:.85em;line-height:1.5}
+.search-row{display:flex;gap:8px;margin-bottom:16px;max-width:700px}
+#search-input{flex:1;padding:12px 16px;background:#1a1b22;border:1px solid #2e2f3a;border-radius:8px;color:#e4e4e7;font-size:1em;outline:none}
+#search-input:focus{border-color:#2563eb}
+#search-btn{padding:12px 24px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:.95em}
+#search-btn:hover{background:#1d4ed8}
+#search-btn:disabled{opacity:.4}
+.status{color:#71717a;font-size:.82em;margin-bottom:16px}
+.status.ready{color:#34d399}
+.status.error{color:#f87171}
+.results{max-width:700px}
+.result{background:#1a1b22;border:1px solid #2e2f3a;border-radius:10px;padding:16px;margin-bottom:10px;cursor:pointer;transition:all .15s}
+.result:hover{border-color:#3e3f4a}
+.result-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.result-title{color:#e4e4e7;font-weight:600;font-size:.95em}
+.result-cat{color:#60a5fa;font-size:.75em;background:#1e3a5f;padding:2px 8px;border-radius:4px}
+.result-section{color:#a1a1aa;font-size:.8em;margin-bottom:6px}
+.result-snippet{color:#a1a1aa;font-size:.85em;line-height:1.5}
+.result-snippet mark{background:#2563eb33;color:#93c5fd;padding:0 2px;border-radius:2px}
+.result-full{display:none;margin-top:12px;padding-top:12px;border-top:1px solid #2e2f3a;color:#d4d4d8;font-size:.88em;line-height:1.65;white-space:pre-wrap}
+.result.expanded .result-full{display:block}
+.no-results{color:#71717a;text-align:center;padding:40px 0;font-size:1em}
+.tools-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tool-link{padding:6px 12px;background:#1e1f26;border:1px solid #2e2f3a;border-radius:6px;color:#a1a1aa;text-decoration:none;font-size:.82em;transition:all .15s}
+.tool-link:hover{background:#27282f;color:#d4d4d8;border-color:#3e3f4a}
+.browse-section{margin-top:24px}
+.browse-section h2{color:#a1a1aa;font-size:.85em;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px}
+.cat-btn{padding:10px 14px;background:#1a1b22;border:1px solid #2e2f3a;border-radius:8px;color:#d4d4d8;cursor:pointer;font-size:.88em;text-align:left;transition:all .15s}
+.cat-btn:hover{border-color:#2563eb;background:#1e1f26}
+.cat-btn .cat-name{font-weight:600;color:#e4e4e7}
+.cat-btn .cat-count{color:#71717a;font-size:.8em}
+</style>
+</head>
+<body>
+<h1>SurvivalAI — Fallback Search</h1>
+<p class="subtitle">Keyword search across the full knowledge base — no AI server needed</p>
+
+<div class="notice">
+  This page searches the knowledge base directly in your browser using SQLite compiled to WebAssembly. It works without the AI server running. For AI-powered answers, use the main interface.
+</div>
+
+<div class="tools-row">
+  <a href="unit-converter.html" class="tool-link">Unit Converter</a>
+  <a href="morse-code.html" class="tool-link">Morse Code</a>
+  <a href="dosage-calculator.html" class="tool-link">Dosage Calculator</a>
+  <a href="radio-frequencies.html" class="tool-link">Radio Frequencies</a>
+  <a href="star-chart.html" class="tool-link">Star Chart</a>
+  <a href="knot-guide.html" class="tool-link">Knot Guide</a>
+  <a href="map-viewer.html" class="tool-link">Map Viewer</a>
+</div>
+
+<div class="search-row">
+  <input type="text" id="search-input" placeholder="Search the knowledge base..." autofocus>
+  <button id="search-btn" onclick="doSearch()" disabled>Search</button>
+</div>
+<div class="status" id="status">Loading database...</div>
+
+<div class="results" id="results"></div>
+
+<div class="browse-section" id="browse-section">
+  <h2>Browse by Category</h2>
+  <div class="cat-grid" id="cat-grid"></div>
+</div>
+
+<script>
+var db = null;
+
+async function initDB() {
+  try {
+    if (typeof initSqlJs === 'undefined') {
+      var s = document.createElement('script');
+      s.src = 'sql-wasm.js';
+      s.onload = function() { loadDB(); };
+      s.onerror = function() {
+        setStatus('sql-wasm.js not found. Place sql-wasm.js and sql-wasm.wasm in the ui/ folder.', 'error');
+      };
+      document.head.appendChild(s);
+    } else {
+      loadDB();
+    }
+  } catch (e) {
+    setStatus('Failed to initialize: ' + e.message, 'error');
+  }
+}
+
+async function loadDB() {
+  try {
+    var SQL = await initSqlJs({ locateFile: function(f) { return f; } });
+    var res = await fetch('../search/knowledge.db');
+    if (!res.ok) throw new Error('knowledge.db not found at ../search/knowledge.db');
+    var buf = await res.arrayBuffer();
+    db = new SQL.Database(new Uint8Array(buf));
+    setStatus('Ready — ' + getArticleCount() + ' articles loaded', 'ready');
+    document.getElementById('search-btn').disabled = false;
+    buildCategoryBrowser();
+  } catch (e) {
+    setStatus('Database error: ' + e.message, 'error');
+  }
+}
+
+function getArticleCount() {
+  var r = db.exec('SELECT count(*) FROM articles');
+  return r[0].values[0][0];
+}
+
+function setStatus(text, cls) {
+  var el = document.getElementById('status');
+  el.textContent = text;
+  el.className = 'status ' + (cls || '');
+}
+
+function doSearch() {
+  var query = document.getElementById('search-input').value.trim();
+  if (!query || !db) return;
+
+  var resultsDiv = document.getElementById('results');
+  document.getElementById('browse-section').style.display = 'none';
+
+  // Extract keywords and build FTS5 query
+  var words = query.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(function(w) { return w.length > 1; });
+  if (words.length === 0) { resultsDiv.innerHTML = '<div class="no-results">Enter a search term</div>'; return; }
+
+  var ftsQuery = words.join(' OR ');
+
+  try {
+    var stmt = db.prepare(
+      'SELECT s.article_id, s.category, s.title, s.section_heading, ' +
+      'snippet(search_index, 4, "<mark>", "</mark>", "...", 40) as snippet, rank ' +
+      'FROM search_index s WHERE search_index MATCH ? ORDER BY rank LIMIT 20'
+    );
+    stmt.bind([ftsQuery]);
+
+    var html = '';
+    var count = 0;
+    while (stmt.step()) {
+      var row = stmt.getAsObject();
+      count++;
+
+      // Get full section content for expand
+      var fullContent = '';
+      try {
+        var s2 = db.prepare('SELECT content FROM sections WHERE article_id = ? AND (heading = ? OR (heading IS NULL AND ? = "")) ORDER BY position');
+        var heading = row.section_heading || '';
+        s2.bind([row.article_id, heading, heading]);
+        if (s2.step()) fullContent = s2.getAsObject().content;
+        s2.free();
+      } catch(e) {}
+
+      html += '<div class="result" onclick="this.classList.toggle(\'expanded\')">' +
+        '<div class="result-header">' +
+          '<span class="result-title">' + escHtml(row.title) + '</span>' +
+          '<span class="result-cat">' + escHtml(row.category) + '</span>' +
+        '</div>' +
+        (row.section_heading ? '<div class="result-section">' + escHtml(row.section_heading) + '</div>' : '') +
+        '<div class="result-snippet">' + row.snippet + '</div>' +
+        (fullContent ? '<div class="result-full">' + escHtml(fullContent) + '</div>' : '') +
+      '</div>';
+    }
+    stmt.free();
+
+    if (count === 0) {
+      html = '<div class="no-results">No results for "' + escHtml(query) + '". Try different keywords.</div>';
+    }
+
+    resultsDiv.innerHTML = html;
+    setStatus(count + ' result' + (count !== 1 ? 's' : '') + ' for "' + query + '"', 'ready');
+  } catch (e) {
+    resultsDiv.innerHTML = '<div class="no-results">Search error: ' + escHtml(e.message) + '</div>';
+  }
+}
+
+function buildCategoryBrowser() {
+  var stmt = db.prepare('SELECT category, count(*) as cnt FROM articles GROUP BY category ORDER BY category');
+  var grid = document.getElementById('cat-grid');
+  grid.innerHTML = '';
+
+  while (stmt.step()) {
+    var row = stmt.getAsObject();
+    var btn = document.createElement('div');
+    btn.className = 'cat-btn';
+    btn.innerHTML = '<div class="cat-name">' + escHtml(row.category) + '</div><div class="cat-count">' + row.cnt + ' articles</div>';
+    btn.dataset.cat = row.category;
+    btn.addEventListener('click', function() { browseCat(this.dataset.cat); });
+    grid.appendChild(btn);
+  }
+  stmt.free();
+}
+
+function browseCat(category) {
+  var stmt = db.prepare('SELECT id, title, filename FROM articles WHERE category = ? ORDER BY title');
+  stmt.bind([category]);
+
+  var resultsDiv = document.getElementById('results');
+  document.getElementById('browse-section').style.display = 'none';
+  var html = '';
+  var count = 0;
+
+  while (stmt.step()) {
+    var row = stmt.getAsObject();
+    count++;
+
+    // Get intro text
+    var intro = '';
+    try {
+      var s2 = db.prepare('SELECT content FROM sections WHERE article_id = ? ORDER BY position LIMIT 1');
+      s2.bind([row.id]);
+      if (s2.step()) intro = s2.getAsObject().content;
+      s2.free();
+    } catch(e) {}
+
+    html += '<div class="result" onclick="this.classList.toggle(\'expanded\')">' +
+      '<div class="result-header">' +
+        '<span class="result-title">' + escHtml(row.title) + '</span>' +
+        '<span class="result-cat">' + escHtml(category) + '</span>' +
+      '</div>' +
+      '<div class="result-snippet">' + escHtml((intro || '').substring(0, 200)) + '...</div>' +
+      (intro ? '<div class="result-full">' + escHtml(intro) + '</div>' : '') +
+    '</div>';
+  }
+  stmt.free();
+
+  resultsDiv.innerHTML = html;
+  setStatus(count + ' articles in "' + category + '"', 'ready');
+}
+
+function escHtml(t) {
+  var d = document.createElement('div');
+  d.textContent = t;
+  return d.innerHTML;
+}
+
+// Enter key to search
+document.getElementById('search-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doSearch();
+});
+
+initDB();
+</script>
+</body>
+</html>

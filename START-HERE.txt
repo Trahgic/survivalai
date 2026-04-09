@@ -1,0 +1,48 @@
+===========================================================
+  SURVIVALAI — Offline Survival Assistant
+===========================================================
+
+This thumb drive contains an AI assistant with a curated
+knowledge base covering medicine, water, food, shelter,
+navigation, agriculture, energy, communications, and more.
+
+No internet connection needed. Everything runs locally.
+
+
+HOW TO START
+============
+
+WINDOWS:
+  1. Open this drive in File Explorer
+  2. Double-click "launch.bat"
+  3. A browser window will open — start typing your question
+
+MAC / LINUX:
+  1. Open a terminal
+  2. Navigate to this drive's folder
+  3. Run: ./launch.sh
+  4. A browser window will open
+
+
+IF THE AI WON'T START
+=====================
+
+Option 1: Open "ui/fallback.html" in any web browser.
+This gives you keyword search across the entire knowledge
+base — no AI needed.
+
+Option 2: Browse the "docs" folder directly. Every topic
+is a readable text file organized by category.
+
+
+HARDWARE REQUIREMENTS
+=====================
+
+  - 6 GB of free RAM (8 GB recommended)
+  - Any laptop or desktop from roughly 2018 or later
+  - USB port (USB 3.0 preferred for faster loading)
+  - Windows 10+, macOS 11+, or Linux
+
+===========================================================
+  Stay safe. Stay prepared.
+===========================================================

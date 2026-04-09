@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Survival Checklists — SurvivalAI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',-apple-system,sans-serif;background:#0c0d11;color:#d4d4d8;min-height:100vh;padding:16px}
+h1{font-size:1.3em;color:#eaebf0;margin-bottom:4px}
+.sub{color:#6b6e7b;font-size:.85em;margin-bottom:16px}
+.back{color:#6b6e7b;text-decoration:none;font-size:.85em;display:inline-block;margin-bottom:12px}
+.back:hover{color:#d4d4d8}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tab{padding:7px 14px;background:#1b1c23;border:1px solid #2a2b36;border-radius:6px;color:#9ca3af;cursor:pointer;font-size:.82em;transition:all .15s}
+.tab:hover{background:#23242d;color:#d4d4d8}
+.tab.active{background:#3b82f6;border-color:#3b82f6;color:#fff}
+.progress{background:#1b1c23;border-radius:20px;height:8px;margin-bottom:16px;overflow:hidden}
+.progress-fill{height:100%;background:#22c55e;border-radius:20px;transition:width .3s}
+.progress-text{font-size:.78em;color:#6b6e7b;margin-bottom:16px;text-align:right}
+.list{max-width:700px}
+.category{margin-bottom:16px}
+.cat-header{font-size:.72em;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#6b6e7b;padding:0 0 6px;border-bottom:1px solid #1e1f2a;margin-bottom:6px}
+.item{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:6px;cursor:pointer;transition:background .1s}
+.item:hover{background:#141519}
+.item input[type=checkbox]{width:18px;height:18px;margin-top:2px;accent-color:#3b82f6;cursor:pointer;flex-shrink:0}
+.item-text{font-size:.9em;color:#cdced6;line-height:1.4}
+.item.checked .item-text{color:#6b6e7b;text-decoration:line-through}
+.item-note{font-size:.78em;color:#6b6e7b;margin-top:2px}
+.reset-btn{padding:8px 16px;background:#1b1c23;border:1px solid #2a2b36;border-radius:6px;color:#9ca3af;cursor:pointer;font-size:.82em;margin-top:16px}
+.reset-btn:hover{background:#23242d;color:#d4d4d8}
+</style>
+</head>
+<body>
+<a href="index.html" class="back">← Back to Chat</a>
+<h1>Survival Checklists</h1>
+<p class="sub">Track your preparedness — progress saves automatically</p>
+
+<div class="tabs" id="tabs"></div>
+<div class="progress-text" id="prog-text"></div>
+<div class="progress"><div class="progress-fill" id="prog-fill"></div></div>
+<div class="list" id="list"></div>
+<button class="reset-btn" onclick="resetList()">Reset Current List</button>
+
+<script>
+var LISTS = {
+  'bug-out-bag': {name:'72-Hour Bug-Out Bag',categories:{
+    'Water':[['1L water bottle (metal, can boil in)'],['Water filter or purification tablets'],['Collapsible water container']],
+    'Shelter & Warmth':[['Emergency bivvy or space blanket ×2'],['Tarp 8×10 + 50ft paracord'],['Rain poncho'],['Fire kit: ferro rod + lighter + tinder'],['Extra socks + warm hat']],
+    'First Aid':[['Tourniquet (CAT or improvised)'],['Gauze, bandages, medical tape'],['Butterfly strips / steri-strips'],['Ibuprofen, acetaminophen, diphenhydramine, loperamide'],['Antibiotic ointment'],['Nitrile gloves ×4'],['Tweezers, safety pins']],
+    'Food':[['3 days calorie-dense food (bars, nuts, jerky)'],['Bouillon cubes or electrolyte packets'],['Metal cup or pot for cooking']],
+    'Tools':[['Fixed-blade knife (4-6 inch)'],['Multi-tool'],['Headlamp + extra batteries'],['Duct tape (20ft wrapped around bottle)'],['Compass + local map (paper)']],
+    'Communication':[['FRS/GMRS radio or AM/FM crank radio'],['Whistle'],['Signal mirror'],['Phone + charging cable + battery bank']],
+    'Documents & Money':[['Copies of IDs in waterproof bag'],['Cash in small bills'],['Medical info, prescriptions list'],['SurvivalAI USB drive']],
+    'Personal':[['Prescription medications (7+ days)'],['Toilet paper + hand sanitizer'],['Bandana / shemagh'],['Zip-lock bags ×3'],['Trash bags ×2'],['Notepad + pencil']]
+  }},
+  'home-prep': {name:'Home Emergency Prep',categories:{
+    'Water Storage':[['1 gallon/person/day × 14 days stored'],['Water filter (gravity or pump)'],['Bleach (unscented) for purification'],['Water storage containers cleaned and filled']],
+    'Food Storage':[['2 weeks non-perishable food per person'],['Manual can opener'],['Propane or camp stove + fuel'],['Cast iron cookware']],
+    'Power':[['Flashlights + batteries for 2 weeks'],['Solar charger or hand-crank radio'],['Generator + fuel (if applicable)'],['Battery bank for phones']],
+    'First Aid':[['Complete first aid kit'],['30-day supply all prescription meds'],['OTC pain, allergy, anti-diarrheal meds'],['Antibiotics (fish antibiotics if no Rx)'],['First aid manual or SurvivalAI']],
+    'Tools':[['Axe or hatchet'],['Saw (bow saw or hand saw)'],['Shovel'],['Pry bar'],['Work gloves'],['Tarps ×2'],['Rope / cordage 100ft+']],
+    'Sanitation':[['Bucket toilet + bags + cat litter'],['Trash bags (heavy duty, many)'],['Bleach and disinfectant'],['Hand sanitizer'],['Soap bars (stockpile)']],
+    'Security':[['Door reinforcement (bar, deadbolt)'],['Window covers (plywood cut to size)'],['Battery-powered motion lights'],['Defensive tools as appropriate']],
+    'Communication':[['NOAA weather radio'],['FRS/GMRS radios ×2+'],['Ham radio (if licensed)'],['Written contact plan for family'],['Rally point designated']]
+  }},
+  'vehicle-kit': {name:'Vehicle Emergency Kit',categories:{
+    'Breakdown':[['Jumper cables or jump pack'],['Tire repair kit + inflator'],['Basic tool set (wrenches, screwdrivers, pliers)'],['Spare fuses'],['Tow strap'],['Road flares or LED flares']],
+    'Survival':[['Blanket or sleeping bag'],['Water (2 gallons)'],['Food bars (3 days)'],['First aid kit'],['Flashlight + batteries'],['Rain gear'],['Fire starter']],
+    'Navigation':[['Paper maps of local area'],['Compass'],['Phone charger (12V)']],
+    'Seasonal':[['Winter: ice scraper, snow shovel, sand/kitty litter, hand warmers'],['Summer: extra water, sunscreen, hat']],
+    'Documents':[['Insurance info'],['Registration'],['Emergency contacts written down'],['Cash ($50+ in small bills)']]
+  }},
+  'garden-startup': {name:'Garden Startup',categories:{
+    'Soil':[['Soil tested (pH and nutrients)'],['Compost pile started or sourced'],['Mulch material gathered'],['Garden bed locations chosen (6+ hrs sun)']],
+    'Seeds':[['Open-pollinated/heirloom seeds prioritized'],['Tomatoes, peppers, squash (warm season)'],['Lettuce, kale, peas, radish (cool season)'],['Beans (nitrogen fixer + protein)'],['Potatoes, sweet potatoes (calorie crops)'],['Herbs: basil, oregano, mint, dill'],['Seed storage organized (cool, dark, dry)']],
+    'Tools':[['Shovel / spade'],['Rake'],['Hoe'],['Watering can or hose'],['Wheelbarrow or garden cart'],['Hand pruners'],['Twine and stakes for trellising']],
+    'Infrastructure':[['Fencing for deer/rabbits if needed'],['Rain barrel or irrigation plan'],['Trellis for climbing crops'],['Row cover / frost protection'],['Compost bin built or acquired']],
+    'Knowledge':[['Last frost date known for your area'],['Planting calendar made'],['Seed starting schedule set'],['Soil amendment plan (lime, compost, fertilizer)']]
+  }}
+};
+
+var currentList = 'bug-out-bag';
+var checked = {};
+try { checked = JSON.parse(localStorage.getItem('sv_checklists') || '{}'); } catch(e) {}
+
+function buildTabs() {
+  var html = '';
+  for (var key in LISTS) {
+    html += '<div class="tab' + (key === currentList ? ' active' : '') + '" onclick="switchList(\'' + key + '\')">' + LISTS[key].name + '</div>';
+  }
+  document.getElementById('tabs').innerHTML = html;
+}
+
+function switchList(key) {
+  currentList = key;
+  buildTabs();
+  renderList();
+}
+
+function renderList() {
+  var list = LISTS[currentList];
+  var html = '';
+  var total = 0, done = 0;
+  var listChecked = checked[currentList] || {};
+
+  for (var cat in list.categories) {
+    html += '<div class="category"><div class="cat-header">' + cat + '</div>';
+    list.categories[cat].forEach(function(item, i) {
+      var id = cat + '-' + i;
+      var isChecked = listChecked[id] || false;
+      total++;
+      if (isChecked) done++;
+      html += '<div class="item' + (isChecked ? ' checked' : '') + '" onclick="toggleItem(\'' + esc(id) + '\')">' +
+        '<input type="checkbox"' + (isChecked ? ' checked' : '') + ' onclick="event.stopPropagation();toggleItem(\'' + esc(id) + '\')">' +
+        '<div><div class="item-text">' + item[0] + '</div>' + (item[1] ? '<div class="item-note">' + item[1] + '</div>' : '') + '</div></div>';
+    });
+    html += '</div>';
+  }
+
+  document.getElementById('list').innerHTML = html;
+  var pct = total > 0 ? Math.round(done / total * 100) : 0;
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-text').textContent = done + ' / ' + total + ' items (' + pct + '%)';
+}
+
+function toggleItem(id) {
+  if (!checked[currentList]) checked[currentList] = {};
+  checked[currentList][id] = !checked[currentList][id];
+  save();
+  renderList();
+}
+
+function resetList() {
+  if (confirm('Reset all checkboxes in this list?')) {
+    checked[currentList] = {};
+    save();
+    renderList();
+  }
+}
+
+function save() { try { localStorage.setItem('sv_checklists', JSON.stringify(checked)); } catch(e) {} }
+function esc(s) { return s.replace(/'/g, "\\'"); }
+
+buildTabs();
+renderList();
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "product": "SurvivalAI",
+  "version": "0.1.0",
+  "build_date": null,
+  "model": {
+    "name": "llama-3.1-8b-instruct",
+    "quantization": "Q4_K_M",
+    "format": "GGUF"
+  },
+  "knowledge_base": {
+    "article_count": null,
+    "chunk_count": null,
+    "last_updated": null
+  },
+  "platforms": ["win-x64", "linux-x64", "mac-arm64", "mac-x64"]
+}

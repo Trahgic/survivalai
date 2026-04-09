@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit Converter — SurvivalAI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f1115;color:#d4d4d8;min-height:100vh;padding:16px}
+h1{font-size:1.4em;color:#e4e4e7;margin-bottom:4px}
+.subtitle{color:#71717a;font-size:.85em;margin-bottom:20px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px}
+.tab{padding:8px 14px;background:#1e1f26;border:1px solid #2e2f3a;border-radius:6px;color:#a1a1aa;cursor:pointer;font-size:.85em;transition:all .15s}
+.tab:hover{background:#27282f;color:#d4d4d8}
+.tab.active{background:#2563eb;border-color:#2563eb;color:#fff}
+.converter{display:none;background:#1a1b22;border:1px solid #2e2f3a;border-radius:10px;padding:20px}
+.converter.active{display:block}
+.row{display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.field{flex:1;min-width:140px}
+.field label{display:block;color:#a1a1aa;font-size:.78em;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.field input,.field select{width:100%;padding:10px 12px;background:#0f1115;border:1px solid #2e2f3a;border-radius:6px;color:#e4e4e7;font-size:1em;outline:none}
+.field input:focus,.field select:focus{border-color:#2563eb}
+.swap-btn{background:#27282f;border:1px solid #2e2f3a;border-radius:50%;width:36px;height:36px;cursor:pointer;color:#a1a1aa;font-size:1.1em;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:18px;transition:all .15s}
+.swap-btn:hover{background:#2563eb;color:#fff;border-color:#2563eb}
+.result{background:#0f1115;border:1px solid #2e2f3a;border-radius:8px;padding:14px 16px;margin-top:10px;font-size:1.1em;color:#34d399;min-height:48px;display:flex;align-items:center}
+.calc-section{margin-top:24px}
+.calc-display{width:100%;padding:16px;background:#0f1115;border:1px solid #2e2f3a;border-radius:8px;color:#e4e4e7;font-size:1.5em;text-align:right;margin-bottom:10px;min-height:56px;font-family:'Courier New',monospace}
+.calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.calc-btn{padding:14px;background:#1e1f26;border:1px solid #2e2f3a;border-radius:6px;color:#d4d4d8;font-size:1.1em;cursor:pointer;transition:all .1s}
+.calc-btn:hover{background:#27282f}
+.calc-btn:active{background:#2563eb;color:#fff}
+.calc-btn.op{background:#27282f;color:#60a5fa}
+.calc-btn.eq{background:#2563eb;color:#fff}
+.calc-btn.eq:hover{background:#1d4ed8}
+.calc-btn.clear{color:#f87171}
+.quick-ref{margin-top:20px;background:#0f1115;border:1px solid #2e2f3a;border-radius:8px;padding:14px 16px}
+.quick-ref h3{color:#a1a1aa;font-size:.8em;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.quick-ref p{color:#71717a;font-size:.85em;line-height:1.6}
+.quick-ref span{color:#d4d4d8}
+</style>
+</head>
+<body>
+<h1>Unit Converter + Calculator</h1>
+<p class="subtitle">Offline — no internet required</p>
+
+<div class="tabs">
+<div class="tab active" onclick="showTab('length')">Length</div>
+<div class="tab" onclick="showTab('weight')">Weight</div>
+<div class="tab" onclick="showTab('volume')">Volume</div>
+<div class="tab" onclick="showTab('temp')">Temp</div>
+<div class="tab" onclick="showTab('area')">Area</div>
+<div class="tab" onclick="showTab('pressure')">Pressure</div>
+<div class="tab" onclick="showTab('speed')">Speed</div>
+<div class="tab" onclick="showTab('calc')">Calculator</div>
+</div>
+
+<div id="conv-length" class="converter active"></div>
+<div id="conv-weight" class="converter"></div>
+<div id="conv-volume" class="converter"></div>
+<div id="conv-temp" class="converter"></div>
+<div id="conv-area" class="converter"></div>
+<div id="conv-pressure" class="converter"></div>
+<div id="conv-speed" class="converter"></div>
+<div id="conv-calc" class="converter"></div>
+
+<script>
+const units = {
+  length: {
+    units: ['inches','feet','yards','miles','millimeters','centimeters','meters','kilometers'],
+    toBase: [25.4, 304.8, 914.4, 1609344, 1, 10, 1000, 1000000], // all to mm
+    quick: '1 inch = 2.54 cm · 1 foot = 30.48 cm · 1 meter = 3.281 ft · 1 mile = 1.609 km · 1 yard ≈ 1 meter'
+  },
+  weight: {
+    units: ['ounces','pounds','tons (US)','grams','kilograms','metric tonnes'],
+    toBase: [28.3495, 453.592, 907185, 1, 1000, 1000000], // all to grams
+    quick: '1 oz = 28.35 g · 1 lb = 0.454 kg · 1 kg = 2.205 lbs · 100 lbs ≈ 45 kg'
+  },
+  volume: {
+    units: ['teaspoons','tablespoons','fluid ounces','cups','pints','quarts','gallons','milliliters','liters'],
+    toBase: [4.929, 14.787, 29.574, 236.588, 473.176, 946.353, 3785.41, 1, 1000], // all to ml
+    quick: '1 tsp = 5 ml · 1 tbsp = 15 ml · 1 cup = 240 ml · 1 gallon = 3.785 L · 3 tsp = 1 tbsp · 16 tbsp = 1 cup'
+  },
+  area: {
+    units: ['sq inches','sq feet','sq yards','acres','sq centimeters','sq meters','hectares'],
+    toBase: [6.4516, 929.03, 8361.27, 40468564.2, 1, 10000, 100000000], // all to sq cm
+    quick: '1 acre = 43,560 sq ft ≈ 200×200 ft · 1 hectare = 2.471 acres · 1 sq meter = 10.76 sq ft'
+  },
+  pressure: {
+    units: ['PSI','atmospheres','bar','kPa','ft of water head'],
+    toBase: [6.89476, 101.325, 100, 1, 2.989], // all to kPa
+    quick: '1 atm = 14.7 PSI = 101.3 kPa · 1 ft water head = 0.43 PSI · Standard tire: 32-35 PSI'
+  },
+  speed: {
+    units: ['mph','km/h','knots','m/s','ft/s'],
+    toBase: [0.44704, 0.27778, 0.51444, 1, 0.3048], // all to m/s
+    quick: '1 mph = 1.609 km/h · 1 knot = 1.151 mph · Walking: ~3 mph · Sound: ~767 mph'
+  }
+};
+
+function buildConverter(cat) {
+  const c = units[cat];
+  const div = document.getElementById('conv-' + cat);
+  div.innerHTML = `
+    <div class="row">
+      <div class="field"><label>Value</label><input type="number" id="${cat}-val" value="1" oninput="convert('${cat}')"></div>
+      <div class="field"><label>From</label><select id="${cat}-from" onchange="convert('${cat}')">${c.units.map((u,i) => `<option value="${i}">${u}</option>`).join('')}</select></div>
+      <button class="swap-btn" onclick="swapUnits('${cat}')" title="Swap">⇄</button>
+      <div class="field"><label>To</label><select id="${cat}-to" onchange="convert('${cat}')">${c.units.map((u,i) => `<option value="${i}"${i===1?' selected':''}>${u}</option>`).join('')}</select></div>
+    </div>
+    <div class="result" id="${cat}-result"></div>
+    <div class="quick-ref"><h3>Quick Reference</h3><p>${c.quick.split('·').map(s=>`<span>${s.trim()}</span>`).join(' · ')}</p></div>
+  `;
+  convert(cat);
+}
+
+function convert(cat) {
+  const c = units[cat];
+  const val = parseFloat(document.getElementById(cat+'-val').value) || 0;
+  const from = parseInt(document.getElementById(cat+'-from').value);
+  const to = parseInt(document.getElementById(cat+'-to').value);
+  const base = val * c.toBase[from];
+  const result = base / c.toBase[to];
+  const fmt = result < 0.01 ? result.toExponential(4) : (Number.isInteger(result) ? result : result.toFixed(6).replace(/\.?0+$/,''));
+  document.getElementById(cat+'-result').textContent = `${val} ${c.units[from]} = ${fmt} ${c.units[to]}`;
+}
+
+function swapUnits(cat) {
+  const f = document.getElementById(cat+'-from');
+  const t = document.getElementById(cat+'-to');
+  [f.value, t.value] = [t.value, f.value];
+  convert(cat);
+}
+
+// Temperature is special
+function buildTemp() {
+  const div = document.getElementById('conv-temp');
+  div.innerHTML = `
+    <div class="row">
+      <div class="field"><label>Value</label><input type="number" id="temp-val" value="72" oninput="convertTemp()"></div>
+      <div class="field"><label>From</label><select id="temp-from" onchange="convertTemp()"><option value="F">Fahrenheit (°F)</option><option value="C">Celsius (°C)</option><option value="K">Kelvin (K)</option></select></div>
+      <button class="swap-btn" onclick="swapTemp()" title="Swap">⇄</button>
+      <div class="field"><label>To</label><select id="temp-to" onchange="convertTemp()"><option value="C">Celsius (°C)</option><option value="F">Fahrenheit (°F)</option><option value="K">Kelvin (K)</option></select></div>
+    </div>
+    <div class="result" id="temp-result"></div>
+    <div class="quick-ref"><h3>Key Temperatures</h3><p>
+      <span>32°F = 0°C Water freezes</span> · <span>98.6°F = 37°C Body temp</span> · <span>212°F = 100°C Water boils</span> · <span>165°F = 74°C Safe poultry temp</span> · <span>-40°F = -40°C They match here</span>
+    </p></div>
+  `;
+  convertTemp();
+}
+
+function convertTemp() {
+  const val = parseFloat(document.getElementById('temp-val').value) || 0;
+  const from = document.getElementById('temp-from').value;
+  const to = document.getElementById('temp-to').value;
+  let c;
+  if (from === 'F') c = (val - 32) * 5/9;
+  else if (from === 'K') c = val - 273.15;
+  else c = val;
+  let result;
+  if (to === 'F') result = c * 9/5 + 32;
+  else if (to === 'K') result = c + 273.15;
+  else result = c;
+  const labels = {F:'°F',C:'°C',K:'K'};
+  const fmt = Number.isInteger(result) ? result : result.toFixed(2).replace(/\.?0+$/,'');
+  document.getElementById('temp-result').textContent = `${val}${labels[from]} = ${fmt}${labels[to]}`;
+}
+
+function swapTemp() {
+  const f = document.getElementById('temp-from');
+  const t = document.getElementById('temp-to');
+  [f.value, t.value] = [t.value, f.value];
+  convertTemp();
+}
+
+// Calculator
+function buildCalc() {
+  const div = document.getElementById('conv-calc');
+  div.innerHTML = `
+    <div class="calc-display" id="calc-display">0</div>
+    <div class="calc-grid">
+      <button class="calc-btn clear" onclick="calcClear()">C</button>
+      <button class="calc-btn op" onclick="calcOp('(')">(</button>
+      <button class="calc-btn op" onclick="calcOp(')')">)</button>
+      <button class="calc-btn op" onclick="calcOp('/')">÷</button>
+      <button class="calc-btn" onclick="calcNum('7')">7</button>
+      <button class="calc-btn" onclick="calcNum('8')">8</button>
+      <button class="calc-btn" onclick="calcNum('9')">9</button>
+      <button class="calc-btn op" onclick="calcOp('*')">×</button>
+      <button class="calc-btn" onclick="calcNum('4')">4</button>
+      <button class="calc-btn" onclick="calcNum('5')">5</button>
+      <button class="calc-btn" onclick="calcNum('6')">6</button>
+      <button class="calc-btn op" onclick="calcOp('-')">−</button>
+      <button class="calc-btn" onclick="calcNum('1')">1</button>
+      <button class="calc-btn" onclick="calcNum('2')">2</button>
+      <button class="calc-btn" onclick="calcNum('3')">3</button>
+      <button class="calc-btn op" onclick="calcOp('+')">+</button>
+      <button class="calc-btn" onclick="calcNum('0')">0</button>
+      <button class="calc-btn" onclick="calcNum('.')">.</button>
+      <button class="calc-btn" onclick="calcBack()">⌫</button>
+      <button class="calc-btn eq" onclick="calcEval()">=</button>
+    </div>
+    <div class="quick-ref" style="margin-top:14px"><h3>Useful Constants</h3><p>
+      <span>π = 3.14159</span> · <span>1 gal water = 8.34 lbs</span> · <span>1 cu ft water = 7.48 gal</span> · <span>1 cord wood = 128 cu ft</span> · <span>1 lb body fat = 3,500 cal</span>
+    </p></div>
+  `;
+}
+
+let calcExpr = '';
+function calcNum(n) { calcExpr += n; document.getElementById('calc-display').textContent = calcExpr; }
+function calcOp(o) { calcExpr += o; document.getElementById('calc-display').textContent = calcExpr; }
+function calcClear() { calcExpr = ''; document.getElementById('calc-display').textContent = '0'; }
+function calcBack() { calcExpr = calcExpr.slice(0,-1); document.getElementById('calc-display').textContent = calcExpr || '0'; }
+function calcEval() {
+  try {
+    const r = Function('"use strict"; return (' + calcExpr + ')')();
+    document.getElementById('calc-display').textContent = r;
+    calcExpr = String(r);
+  } catch(e) { document.getElementById('calc-display').textContent = 'Error'; calcExpr = ''; }
+}
+
+function showTab(cat) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.converter').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('conv-'+cat).classList.add('active');
+}
+
+// Init
+['length','weight','volume','area','pressure','speed'].forEach(buildConverter);
+buildTemp();
+buildCalc();
+</script>
+</body>
+</html>

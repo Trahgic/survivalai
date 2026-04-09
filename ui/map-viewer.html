@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Map Viewer — SurvivalAI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f1115;color:#d4d4d8;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.toolbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#141519;border-bottom:1px solid #2a2b36;flex-shrink:0;flex-wrap:wrap;z-index:100}
+.toolbar h1{font-size:1em;color:#eaebf0;margin-right:8px;white-space:nowrap}
+.t-btn{padding:5px 10px;background:#1b1c23;border:1px solid #2a2b36;border-radius:5px;color:#9ca3af;cursor:pointer;font-size:.8em;transition:all .15s;white-space:nowrap}
+.t-btn:hover{background:#23242d;color:#d4d4d8;border-color:#3a3b48}
+.t-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+.coords{color:#6b6e7b;font-size:.78em;font-family:Consolas,'Courier New',monospace;margin-left:auto;white-space:nowrap}
+.tile-mode{font-size:.68em;padding:3px 8px;border-radius:10px;font-weight:500}
+.tile-mode.online{background:rgba(34,197,94,.15);color:#22c55e}
+.tile-mode.offline{background:rgba(59,130,246,.15);color:#60a5fa}
+.tile-mode.none{background:rgba(239,68,68,.15);color:#ef4444}
+#map{flex:1;position:relative;overflow:hidden;cursor:grab;background:#080910;touch-action:none}
+#map:active{cursor:grabbing}
+#map canvas{position:absolute;top:0;left:0;image-rendering:auto}
+.zoom-controls{position:absolute;bottom:20px;right:16px;display:flex;flex-direction:column;gap:3px;z-index:10}
+.z-btn{width:34px;height:34px;background:#141519dd;border:1px solid #2a2b36;border-radius:6px;color:#d4d4d8;font-size:1.3em;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .1s}
+.z-btn:hover{background:#23242ddd;border-color:#3a3b48}
+.scale-bar{position:absolute;bottom:20px;left:16px;z-index:10}
+.scale-inner{height:3px;background:#d4d4d8;border-left:1px solid #d4d4d8;border-right:1px solid #d4d4d8}
+.scale-label{color:#d4d4d8;font-size:.68em;margin-bottom:2px;text-shadow:0 1px 3px #000}
+.crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:5;opacity:.25}
+.crosshair::before,.crosshair::after{content:'';position:absolute;background:#d4d4d8}
+.crosshair::before{width:1px;height:20px;left:0;top:-10px}
+.crosshair::after{width:20px;height:1px;top:0;left:-10px}
+.marker{position:absolute;transform:translate(-50%,-100%);cursor:pointer;z-index:8;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+.marker svg{width:24px;height:30px}
+.marker-label{position:absolute;left:14px;top:2px;background:#141519ee;border:1px solid #2a2b36;border-radius:4px;padding:2px 8px;font-size:.73em;color:#d4d4d8;white-space:nowrap;pointer-events:none}
+.panel{position:absolute;top:0;right:0;width:280px;height:100%;background:#141519;border-left:1px solid #2a2b36;z-index:20;padding:14px;overflow-y:auto;transform:translateX(100%);transition:transform .2s}
+.panel.open{transform:translateX(0)}
+.panel h2{font-size:.78em;color:#6b6e7b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+.panel .close{position:absolute;top:10px;right:12px;background:none;border:none;color:#6b6e7b;font-size:1.2em;cursor:pointer}
+.field{margin-bottom:8px}
+.field label{display:block;color:#6b6e7b;font-size:.72em;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}
+.field input{width:100%;padding:7px 10px;background:#0c0d11;border:1px solid #2a2b36;border-radius:5px;color:#eaebf0;font-size:.88em;outline:none}
+.field input:focus{border-color:#2563eb}
+.action-btn{width:100%;padding:8px;border-radius:6px;cursor:pointer;font-size:.83em;font-weight:500;border:1px solid;margin-top:4px;transition:all .15s}
+.action-btn.primary{background:#2563eb;border-color:#2563eb;color:#fff}
+.action-btn.primary:hover{background:#1d4ed8}
+.action-btn.secondary{background:#1b1c23;border-color:#2a2b36;color:#9ca3af}
+.action-btn.secondary:hover{background:#23242d;color:#d4d4d8}
+.wp{background:#0c0d11;border:1px solid #2a2b36;border-radius:6px;padding:8px 10px;margin-bottom:6px}
+.wp-name{color:#eaebf0;font-weight:600;font-size:.85em;margin-bottom:1px}
+.wp-coords{color:#6b6e7b;font-family:Consolas,monospace;font-size:.75em}
+.wp-btns{display:flex;gap:4px;margin-top:5px}
+.wp-btn{padding:2px 8px;background:#1b1c23;border:1px solid #2a2b36;border-radius:4px;color:#9ca3af;cursor:pointer;font-size:.73em}
+.wp-btn:hover{background:#23242d;color:#d4d4d8}
+#overlay2{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:15}
+.goto-modal{display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#141519;border:1px solid #2a2b36;border-radius:10px;padding:20px;z-index:50;width:300px}
+.goto-modal.open{display:block}
+.goto-modal h3{color:#eaebf0;font-size:.95em;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <h1>Map Viewer</h1>
+  <span class="tile-mode" id="tile-mode"></span>
+  <button class="t-btn" onclick="toggleGrid()" id="grid-btn">Grid</button>
+  <button class="t-btn" onclick="openGoto()">Go To</button>
+  <button class="t-btn" onclick="togglePanel()">Waypoints</button>
+  <span class="coords" id="coords">—</span>
+</div>
+
+<div id="map">
+  <canvas id="canvas"></canvas>
+  <div class="crosshair"></div>
+  <div class="zoom-controls">
+    <button class="z-btn" onclick="zoomIn()">+</button>
+    <button class="z-btn" onclick="zoomOut()">−</button>
+  </div>
+  <div class="scale-bar"><div class="scale-label" id="scale-label"></div><div class="scale-inner" id="scale-inner" style="width:80px"></div></div>
+
+  <div class="panel" id="panel">
+    <button class="close" onclick="togglePanel()">×</button>
+    <h2>Waypoints</h2>
+    <div class="field"><label>Name</label><input id="wp-name" placeholder="e.g. Water Source"></div>
+    <div class="field"><label>Lat</label><input id="wp-lat" type="number" step="0.0001"></div>
+    <div class="field"><label>Lon</label><input id="wp-lon" type="number" step="0.0001"></div>
+    <button class="action-btn primary" onclick="addWaypoint()">Add Waypoint</button>
+    <button class="action-btn secondary" onclick="addCurrentCenter()">Mark Center Point</button>
+    <div id="wp-list" style="margin-top:12px"></div>
+  </div>
+
+  <div class="goto-modal" id="goto-modal">
+    <h3>Go to Coordinates</h3>
+    <div class="field"><label>Latitude</label><input id="goto-lat" type="number" step="0.0001" placeholder="e.g. 40.7128"></div>
+    <div class="field"><label>Longitude</label><input id="goto-lon" type="number" step="0.0001" placeholder="e.g. -74.0060"></div>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <button class="action-btn primary" onclick="doGoto()" style="flex:1">Go</button>
+      <button class="action-btn secondary" onclick="closeGoto()" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
+<div id="overlay2" onclick="closeGoto()"></div>
+
+<script>
+var canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d'),mapDiv=document.getElementById('map');
+// Store view as world pixel center — no offset accumulation, no jitter
+var centerX, centerY, zoom=4;
+var TILE=256, tileCache={}, showGrid=false;
+var waypoints=[];try{waypoints=JSON.parse(localStorage.getItem('sv_wp')||'[]')}catch(e){}
+var tileMode='checking', useOnline=false;
+var OFFLINE_PATH='../maps/', ONLINE_URL='https://tile.openstreetmap.org/';
+var dragging=false, lastMouse={x:0,y:0};
+var needsRender=false;
+
+// Convert lat/lon to world pixel coords at current zoom
+function lon2px(lon){return((lon+180)/360)*Math.pow(2,zoom)*TILE}
+function lat2px(lat){return(1-Math.log(Math.tan(lat*Math.PI/180)+1/Math.cos(lat*Math.PI/180))/Math.PI)/2*Math.pow(2,zoom)*TILE}
+function px2lon(px){return px/(Math.pow(2,zoom)*TILE)*360-180}
+function px2lat(py){var n=Math.PI-2*Math.PI*py/(Math.pow(2,zoom)*TILE);return 180/Math.PI*Math.atan(.5*(Math.exp(n)-Math.exp(-n)))}
+function lon2tile(lon,z){return((lon+180)/360)*Math.pow(2,z)}
+function lat2tile(lat,z){return(1-Math.log(Math.tan(lat*Math.PI/180)+1/Math.cos(lat*Math.PI/180))/Math.PI)/2*Math.pow(2,z)}
+
+// Init center from lat/lon
+function initView(lat,lon){centerX=lon2px(lon);centerY=lat2px(lat)}
+initView(39.8,-98.5);
+
+// Tile detection
+function detectTileMode(){
+  var img=new Image();
+  img.onload=function(){tileMode='offline';updateModeIndicator();scheduleRender()};
+  img.onerror=function(){
+    var img2=new Image();img2.crossOrigin='anonymous';
+    img2.onload=function(){tileMode='online';useOnline=true;updateModeIndicator();scheduleRender()};
+    img2.onerror=function(){tileMode='none';updateModeIndicator();scheduleRender()};
+    img2.src=ONLINE_URL+'4/4/6.png';
+  };
+  img.src=OFFLINE_PATH+'4/4/6.png';
+}
+function updateModeIndicator(){
+  var el=document.getElementById('tile-mode');
+  if(tileMode==='online'){el.className='tile-mode online';el.textContent='Online tiles'}
+  else if(tileMode==='offline'){el.className='tile-mode offline';el.textContent='Offline tiles'}
+  else{el.className='tile-mode none';el.textContent='No tiles'}
+}
+
+function loadTile(z,x,y){
+  var key=z+'/'+x+'/'+y;
+  if(tileCache[key])return tileCache[key]==='loading'||tileCache[key]==='err'?null:tileCache[key];
+  var img=new Image();
+  if(useOnline)img.crossOrigin='anonymous';
+  img.onload=function(){tileCache[key]=img;scheduleRender()};
+  img.onerror=function(){
+    if(!useOnline){
+      var img2=new Image();img2.crossOrigin='anonymous';
+      img2.onload=function(){tileCache[key]=img2;if(!useOnline){useOnline=true;tileMode='online';updateModeIndicator()}scheduleRender()};
+      img2.onerror=function(){tileCache[key]='err'};
+      img2.src=ONLINE_URL+key+'.png';
+    }else{tileCache[key]='err'}
+  };
+  img.src=(useOnline?ONLINE_URL:OFFLINE_PATH)+key+'.png';
+  tileCache[key]='loading';
+  return null;
+}
+
+// Batched rendering via requestAnimationFrame
+function scheduleRender(){if(!needsRender){needsRender=true;requestAnimationFrame(doRender)}}
+function doRender(){needsRender=false;render()}
+
+function resize(){
+  var r=mapDiv.getBoundingClientRect();
+  canvas.width=r.width;canvas.height=r.height;
+  scheduleRender();
+}
+
+function render(){
+  var w=canvas.width,h=canvas.height;
+  if(w===0||h===0)return;
+  ctx.fillStyle='#080910';ctx.fillRect(0,0,w,h);
+
+  // Screen origin: top-left of canvas in world pixels
+  var ox=centerX-w/2, oy=centerY-h/2;
+  var max=Math.pow(2,zoom);
+  var maxPx=max*TILE;
+
+  // Which tiles are visible
+  var tileX0=Math.floor(ox/TILE), tileY0=Math.floor(oy/TILE);
+  var tileX1=Math.ceil((ox+w)/TILE), tileY1=Math.ceil((oy+h)/TILE);
+
+  for(var tx=tileX0;tx<=tileX1;tx++){
+    for(var ty=tileY0;ty<=tileY1;ty++){
+      if(ty<0||ty>=max)continue;
+      var wrappedTx=((tx%max)+max)%max;
+      var screenX=tx*TILE-ox;
+      var screenY=ty*TILE-oy;
+      var tile=loadTile(zoom,wrappedTx,ty);
+      if(tile){ctx.drawImage(tile,screenX,screenY,TILE,TILE)}
+      else{ctx.strokeStyle='#1a1b24';ctx.strokeRect(screenX,screenY,TILE,TILE)}
+    }
+  }
+
+  // Waypoint markers
+  document.querySelectorAll('.marker').forEach(function(m){m.remove()});
+  waypoints.forEach(function(wp,i){
+    var wpx=lon2px(wp.lon)-ox;
+    var wpy=lat2px(wp.lat)-oy;
+    if(wpx<-30||wpx>w+30||wpy<-40||wpy>h+10)return;
+    var m=document.createElement('div');m.className='marker';
+    m.style.left=wpx+'px';m.style.top=wpy+'px';
+    m.innerHTML='<svg viewBox="0 0 24 30"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 18 12 18s12-9 12-18C24 5.4 18.6 0 12 0z" fill="#ef4444"/><circle cx="12" cy="11" r="4" fill="#fff"/></svg><span class="marker-label">'+escHtml(wp.name)+'</span>';
+    m.onclick=function(e){e.stopPropagation();if(confirm(wp.name+'\n'+wp.lat.toFixed(5)+', '+wp.lon.toFixed(5)+'\n\nDelete?')){waypoints.splice(i,1);saveWP();renderWPList();scheduleRender()}};
+    mapDiv.appendChild(m);
+  });
+
+  // Grid
+  if(showGrid) drawGrid(ox,oy,w,h);
+
+  // Update coords display
+  var cLat=px2lat(centerY),cLon=px2lon(centerX);
+  document.getElementById('coords').textContent=cLat.toFixed(4)+'\u00B0'+(cLat>=0?'N':'S')+', '+Math.abs(cLon).toFixed(4)+'\u00B0'+(cLon>=0?'E':'W')+' | Z'+zoom;
+  updateScale();
+}
+
+function drawGrid(ox,oy,w,h){
+  var cLat=px2lat(centerY),cLon=px2lon(centerX);
+  var step=zoom<4?10:zoom<7?5:zoom<10?1:zoom<13?.5:.1;
+  ctx.strokeStyle='#ffffff12';ctx.lineWidth=.5;ctx.font='10px monospace';ctx.fillStyle='#ffffff25';
+  var lonL=px2lon(ox),lonR=px2lon(ox+w);
+  var latT=px2lat(oy),latB=px2lat(oy+h);
+  for(var lon=Math.floor(lonL/step)*step;lon<=lonR;lon+=step){
+    var sx=lon2px(lon)-ox;
+    ctx.beginPath();ctx.moveTo(sx,0);ctx.lineTo(sx,h);ctx.stroke();
+    ctx.fillText(lon.toFixed(step<1?1:0)+'\u00B0',sx+3,12);
+  }
+  for(var lat=Math.floor(latB/step)*step;lat<=latT;lat+=step){
+    var sy=lat2px(lat)-oy;
+    ctx.beginPath();ctx.moveTo(0,sy);ctx.lineTo(w,sy);ctx.stroke();
+    ctx.fillText(lat.toFixed(step<1?1:0)+'\u00B0',3,sy-3);
+  }
+}
+
+function updateScale(){
+  var cLat=px2lat(centerY);
+  var mpp=156543.03*Math.cos(cLat*Math.PI/180)/Math.pow(2,zoom);
+  var targets=[50,100,200,500,1000,2000,5000,10000,20000,50000,100000,200000,500000];
+  var scaleM=mpp*80,best=targets[0];
+  for(var i=0;i<targets.length;i++)if(Math.abs(targets[i]-scaleM)<Math.abs(best-scaleM))best=targets[i];
+  document.getElementById('scale-inner').style.width=(best/mpp)+'px';
+  document.getElementById('scale-label').textContent=best>=1000?(best/1000)+'km':best+'m';
+}
+
+// ===== PANNING — direct pixel center manipulation, no offset =====
+mapDiv.addEventListener('mousedown',function(e){
+  if(e.target.closest('.panel')||e.target.closest('.z-btn')||e.target.closest('.marker')||e.target.closest('.goto-modal'))return;
+  dragging=true;
+  lastMouse.x=e.clientX;lastMouse.y=e.clientY;
+  e.preventDefault();
+});
+window.addEventListener('mousemove',function(e){
+  if(!dragging)return;
+  var dx=e.clientX-lastMouse.x, dy=e.clientY-lastMouse.y;
+  centerX-=dx; centerY-=dy;
+  lastMouse.x=e.clientX; lastMouse.y=e.clientY;
+  scheduleRender();
+});
+window.addEventListener('mouseup',function(){dragging=false});
+
+// Touch panning
+var lastTouch=null;
+mapDiv.addEventListener('touchstart',function(e){
+  if(e.target.closest('.panel')||e.target.closest('.goto-modal'))return;
+  if(e.touches.length===1){
+    dragging=true;
+    lastTouch={x:e.touches[0].clientX,y:e.touches[0].clientY};
+  }
+},{passive:true});
+mapDiv.addEventListener('touchmove',function(e){
+  if(!dragging||!lastTouch||e.touches.length!==1)return;
+  var dx=e.touches[0].clientX-lastTouch.x, dy=e.touches[0].clientY-lastTouch.y;
+  centerX-=dx; centerY-=dy;
+  lastTouch.x=e.touches[0].clientX; lastTouch.y=e.touches[0].clientY;
+  scheduleRender();
+},{passive:true});
+mapDiv.addEventListener('touchend',function(){dragging=false;lastTouch=null});
+
+// Zoom toward mouse position
+mapDiv.addEventListener('wheel',function(e){
+  e.preventDefault();
+  var rect=canvas.getBoundingClientRect();
+  var mouseX=e.clientX-rect.left, mouseY=e.clientY-rect.top;
+  // World coords under cursor before zoom
+  var wx=centerX-canvas.width/2+mouseX;
+  var wy=centerY-canvas.height/2+mouseY;
+
+  if(e.deltaY<0&&zoom<18){
+    zoom++;
+    // After zoom, the world pixel coords double
+    centerX=wx*2-(mouseX-canvas.width/2);
+    centerY=wy*2-(mouseY-canvas.height/2);
+  }else if(e.deltaY>0&&zoom>1){
+    zoom--;
+    centerX=wx/2-(mouseX-canvas.width/2);
+    centerY=wy/2-(mouseY-canvas.height/2);
+  }
+  scheduleRender();
+},{passive:false});
+
+function zoomIn(){
+  if(zoom<18){
+    // Zoom toward center
+    centerX=centerX*2; centerY=centerY*2;
+    zoom++; scheduleRender();
+  }
+}
+function zoomOut(){
+  if(zoom>1){
+    centerX=centerX/2; centerY=centerY/2;
+    zoom--; scheduleRender();
+  }
+}
+
+function toggleGrid(){showGrid=!showGrid;document.getElementById('grid-btn').classList.toggle('active',showGrid);scheduleRender()}
+function togglePanel(){document.getElementById('panel').classList.toggle('open')}
+function openGoto(){
+  document.getElementById('goto-modal').classList.add('open');
+  document.getElementById('overlay2').style.display='block';
+  document.getElementById('goto-lat').value=px2lat(centerY).toFixed(4);
+  document.getElementById('goto-lon').value=px2lon(centerX).toFixed(4);
+}
+function closeGoto(){document.getElementById('goto-modal').classList.remove('open');document.getElementById('overlay2').style.display='none'}
+function doGoto(){
+  var lat=parseFloat(document.getElementById('goto-lat').value),lon=parseFloat(document.getElementById('goto-lon').value);
+  if(!isNaN(lat)&&!isNaN(lon)){
+    if(zoom<8)zoom=10;
+    initView(lat,lon);scheduleRender();closeGoto();
+  }
+}
+
+function addWaypoint(){
+  var name=document.getElementById('wp-name').value.trim()||'WP '+(waypoints.length+1);
+  var lat=parseFloat(document.getElementById('wp-lat').value),lon=parseFloat(document.getElementById('wp-lon').value);
+  if(isNaN(lat)||isNaN(lon))return;
+  waypoints.push({name:name,lat:lat,lon:lon});saveWP();renderWPList();scheduleRender();
+  document.getElementById('wp-name').value='';
+}
+function addCurrentCenter(){
+  var name=document.getElementById('wp-name').value.trim()||'WP '+(waypoints.length+1);
+  var lat=px2lat(centerY),lon=px2lon(centerX);
+  waypoints.push({name:name,lat:lat,lon:lon});saveWP();renderWPList();scheduleRender();
+  document.getElementById('wp-name').value='';
+}
+function removeWP(i){waypoints.splice(i,1);saveWP();renderWPList();scheduleRender()}
+function goToWP(i){if(zoom<10)zoom=12;initView(waypoints[i].lat,waypoints[i].lon);scheduleRender()}
+function saveWP(){try{localStorage.setItem('sv_wp',JSON.stringify(waypoints))}catch(e){}}
+function renderWPList(){
+  var el=document.getElementById('wp-list');el.innerHTML='';
+  waypoints.forEach(function(wp,i){
+    var d=document.createElement('div');d.className='wp';
+    d.innerHTML='<div class="wp-name">'+escHtml(wp.name)+'</div><div class="wp-coords">'+wp.lat.toFixed(5)+', '+wp.lon.toFixed(5)+'</div><div class="wp-btns"><button class="wp-btn" onclick="goToWP('+i+')">Go To</button><button class="wp-btn" onclick="removeWP('+i+')">Delete</button></div>';
+    el.appendChild(d);
+  });
+}
+function escHtml(t){var d=document.createElement('div');d.textContent=t;return d.innerHTML}
+
+window.addEventListener('resize',resize);
+resize();renderWPList();detectTileMode();
+</script>
+</body>
+</html>

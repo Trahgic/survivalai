@@ -1,0 +1,8 @@
+model/
+engine/
+search/
+ui/knowledge.db
+ui/sql-wasm.js
+ui/sql-wasm.wasm
+maps/
+history/

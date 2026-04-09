@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knot Guide — SurvivalAI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f1115;color:#d4d4d8;min-height:100vh;padding:16px}
+h1{font-size:1.4em;color:#e4e4e7;margin-bottom:4px}
+.subtitle{color:#71717a;font-size:.85em;margin-bottom:16px}
+.search{width:100%;padding:10px 14px;background:#1a1b22;border:1px solid #2e2f3a;border-radius:8px;color:#e4e4e7;font-size:1em;outline:none;margin-bottom:12px}
+.search:focus{border-color:#2563eb}
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.filter-btn{padding:6px 12px;background:#1e1f26;border:1px solid #2e2f3a;border-radius:6px;color:#a1a1aa;cursor:pointer;font-size:.82em;transition:all .15s}
+.filter-btn:hover{background:#27282f}
+.filter-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}
+.knot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.knot-card{background:#1a1b22;border:1px solid #2e2f3a;border-radius:10px;overflow:hidden;cursor:pointer;transition:all .15s}
+.knot-card:hover{border-color:#3e3f4a;transform:translateY(-1px)}
+.knot-card.expanded{grid-column:1/-1;max-width:700px}
+.knot-header{padding:16px}
+.knot-name{font-size:1.05em;color:#e4e4e7;font-weight:600;margin-bottom:4px}
+.knot-aka{color:#71717a;font-size:.8em;margin-bottom:8px}
+.knot-tags{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.knot-tag{padding:2px 8px;background:#0f1115;border-radius:4px;font-size:.72em;color:#a1a1aa}
+.knot-tag.use-hitch{color:#60a5fa}.knot-tag.use-bend{color:#34d399}.knot-tag.use-loop{color:#fbbf24}.knot-tag.use-stopper{color:#f87171}.knot-tag.use-binding{color:#c084fc}
+.knot-meta{display:flex;gap:16px;font-size:.82em;color:#71717a}
+.knot-meta span{display:flex;align-items:center;gap:4px}
+.strength-bar{width:50px;height:6px;background:#1e1f26;border-radius:3px;display:inline-block;vertical-align:middle}
+.strength-fill{height:100%;border-radius:3px;background:#34d399}
+.knot-detail{display:none;padding:0 16px 16px;border-top:1px solid #2e2f3a}
+.knot-card.expanded .knot-detail{display:block}
+.step-list{counter-reset:steps}
+.step{counter-increment:steps;padding:10px 0 10px 32px;position:relative;border-left:2px solid #2e2f3a;margin-left:10px;font-size:.9em;line-height:1.6;color:#d4d4d8}
+.step:last-child{border-left-color:transparent}
+.step::before{content:counter(steps);position:absolute;left:-13px;top:8px;width:24px;height:24px;background:#1e1f26;border:2px solid #2e2f3a;border-radius:50%;text-align:center;line-height:20px;font-size:.75em;color:#a1a1aa;font-weight:600}
+.step.active::before{background:#2563eb;border-color:#2563eb;color:#fff}
+.step-controls{display:flex;gap:8px;margin-top:12px;margin-left:10px}
+.step-btn{padding:8px 16px;background:#1e1f26;border:1px solid #2e2f3a;border-radius:6px;color:#d4d4d8;cursor:pointer;font-size:.85em;transition:all .15s}
+.step-btn:hover{background:#27282f}
+.step-btn.primary{background:#2563eb;border-color:#2563eb;color:#fff}
+.knot-use{margin-top:12px;padding:12px;background:#0f1115;border-radius:6px}
+.knot-use h4{color:#a1a1aa;font-size:.78em;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.knot-use p{color:#a1a1aa;font-size:.85em;line-height:1.5}
+.knot-warn{color:#f87171;font-size:.85em;margin-top:8px;line-height:1.5}
+.quick-pick{background:#1a1b22;border:1px solid #2e2f3a;border-radius:10px;padding:16px;margin-bottom:16px}
+.quick-pick h2{font-size:.85em;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.quick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px}
+.quick-item{padding:8px 12px;background:#0f1115;border:1px solid #2e2f3a;border-radius:6px;font-size:.85em;cursor:pointer;transition:all .15s;display:flex;justify-content:space-between}
+.quick-item:hover{border-color:#2563eb;background:#1e1f26}
+.quick-situation{color:#d4d4d8}
+.quick-knot{color:#60a5fa;font-weight:500}
+</style>
+</head>
+<body>
+<h1>Interactive Knot Guide</h1>
+<p class="subtitle">15 essential knots with step-by-step instructions — offline</p>
+
+<div class="quick-pick">
+  <h2>What are you trying to do?</h2>
+  <div class="quick-grid" id="quick-grid"></div>
+</div>
+
+<input class="search" id="search" placeholder="Search knots by name, use, or type..." oninput="filterKnots()">
+<div class="filter-row" id="filters"></div>
+<div class="knot-grid" id="knot-grid"></div>
+
+<script>
+const knots = [
+  {name:'Bowline',aka:'King of Knots',type:'loop',strength:60,
+    uses:'Fixed loop that won\'t slip. Rescue, rigging, tying to a post, securing a line around anything.',
+    warn:'Can work loose if not loaded. Add a stopper knot to the tail for life-safety use.',
+    tags:['loop','rescue','essential'],
+    steps:['Make a small loop in the standing part, about 12 inches from the end. The tail passes UP through this loop.','Pass the tail up through the loop from underneath.','Bring the tail around behind the standing part (around the "tree").','Thread the tail back down through the same small loop it came up through.','Pull the standing part and the loop together to tighten. The tail should exit inside the loop.']},
+  {name:'Square Knot',aka:'Reef Knot',type:'bend',strength:45,
+    uses:'Joining two ropes of equal size. Tying bandages. Bundling. NOT for load-bearing.',
+    warn:'Capsizes under uneven loading — never use for critical loads. Can slip with synthetic rope.',
+    tags:['bend','first-aid','quick'],
+    steps:['Hold one end in each hand.','Cross right over left and tuck under.','Now cross left over right and tuck under.','Pull both ends to tighten.','The finished knot lies flat — both parts of the same rope exit on the same side. If they exit on opposite sides, you have a granny knot (unreliable).']},
+  {name:'Clove Hitch',aka:'',type:'hitch',strength:60,
+    uses:'Quick attachment to a post or pole. Starting and ending lashings. Temporary tie-off.',
+    warn:'Slips on smooth surfaces. Add half-hitches below for security.',
+    tags:['hitch','quick','lashing'],
+    steps:['Wrap the rope around the post.','Cross over the standing part and wrap around the post again.','Tuck the working end under the second wrap.','Pull tight. Both tails exit on opposite sides of the knot.']},
+  {name:'Taut-Line Hitch',aka:'Midshipman\'s Hitch',type:'hitch',strength:55,
+    uses:'Adjustable loop for tensioning lines. Tent guy lines, tarps, clotheslines.',
+    warn:'Only grips in one direction. Must be loaded along the standing part.',
+    tags:['hitch','adjustable','shelter'],
+    steps:['Pass the end around the anchor point (stake, tree, ring).','Wrap the working end around the standing part twice, inside the loop (toward the anchor). Both wraps go the same direction.','Make one more wrap outside the loop (above the first two wraps, away from the anchor).','Tuck the end under this last wrap.','Slide the knot up the standing part to increase tension, down to decrease. It grips when loaded.']},
+  {name:'Two Half-Hitches',aka:'',type:'hitch',strength:60,
+    uses:'Attaching rope to a ring, post, or pole. Simple and reliable.',
+    warn:'Both hitches must spiral the same direction or it won\'t hold.',
+    tags:['hitch','quick','general'],
+    steps:['Pass the rope around the object.','Bring the working end over and around the standing part, through the loop — that\'s one half-hitch.','Repeat: bring the end over and around the standing part again, through the new loop. Same direction as the first.','Pull snug against the object.']},
+  {name:'Trucker\'s Hitch',aka:'',type:'hitch',strength:65,
+    uses:'Maximum tension on a line. Tie-downs, ridgelines, load securing. Gives 3:1 mechanical advantage.',
+    warn:'Hard on rope — the sharp bends can damage fibers under heavy load.',
+    tags:['hitch','tension','shelter','hauling'],
+    steps:['Tie one end of the rope to a fixed point.','At mid-rope, make a slip loop (a loop with a bight pulled through — NOT a fixed knot). This creates a makeshift pulley.','Run the free end around/through your anchor point.','Thread the free end back up through the slip loop.','Pull down — you get roughly 3:1 mechanical advantage. Haul the line tight.','Secure with two half-hitches around the standing part, snug against the loop.']},
+  {name:'Figure Eight',aka:'Flemish Knot',type:'stopper',strength:75,
+    uses:'Stopper knot — prevents rope from pulling through a hole, grommet, or pulley.',
+    warn:'None — one of the safest and strongest basic knots.',
+    tags:['stopper','climbing','essential'],
+    steps:['Make a loop by crossing the working end over the standing part.','Bring the working end behind the standing part.','Pass the end through the original loop from front to back.','Pull to tighten. The knot should look like a figure 8.']},
+  {name:'Figure Eight on a Bight',aka:'Double Figure Eight',type:'loop',strength:75,
+    uses:'Strong, reliable loop in middle or end of rope. Climbing, rigging, rescue.',
+    warn:'Difficult to untie after heavy loading. Use when you don\'t need to untie quickly.',
+    tags:['loop','climbing','rescue','essential'],
+    steps:['Double the rope to form a bight (a U-shape of doubled rope).','Tie a figure eight with the doubled rope — cross over, go behind, thread through.','Dress the knot by pulling the loop and both standing parts.','The result is a strong loop that won\'t slip.']},
+  {name:'Sheet Bend',aka:'Weaver\'s Knot',type:'bend',strength:55,
+    uses:'Joining two ropes of different diameters. More reliable than a square knot for mismatched ropes.',
+    warn:'Use double sheet bend for very slippery or very different-sized ropes.',
+    tags:['bend','joining','essential'],
+    steps:['Make a bight (U-shape) in the thicker rope.','Pass the thinner rope up through the bight from behind.','Wrap the thinner rope around the back of both legs of the bight.','Tuck the thinner rope under itself (under its own standing part where it entered the bight).','Important: both short ends should exit on the same side of the knot.']},
+  {name:'Timber Hitch',aka:'',type:'hitch',strength:65,
+    uses:'Dragging logs and poles. Grips tighter under load. Easy to untie.',
+    warn:'Only holds under tension. Unties itself when slack.',
+    tags:['hitch','hauling','lumber'],
+    steps:['Pass the rope around the log or pole.','Bring the working end around the standing part.','Twist the working end around itself 3-4 times (around the part of rope between the knot and the log).','Pull the standing part to tighten. The twists grip the log and tighten under drag.']},
+  {name:'Prussik Knot',aka:'Prusik',type:'hitch',strength:55,
+    uses:'Ascending a rope. Adjustable friction grip. Climbing, rescue.',
+    warn:'Use cord 60-80% the diameter of the main rope. Too similar in size won\'t grip.',
+    tags:['hitch','climbing','rescue'],
+    steps:['Use a loop of thin cord (tied with a double fisherman\'s or overhand).','Wrap the loop around the main rope: pass the loop behind the rope, bring both tails forward.','Pass one tail of the loop through the other tail\'s opening — wrapping around the rope.','Repeat: wrap around the rope a total of 3 times.','Dress neatly — all wraps should be parallel and snug.','Test: it should grip when you weight it and slide when you release weight and push.']},
+  {name:'Constrictor Knot',aka:'',type:'binding',strength:70,
+    uses:'Binding — closing bags, clamping hose ends, holding objects together permanently.',
+    warn:'Nearly impossible to untie once tightened. Often must be cut off.',
+    tags:['binding','permanent','repair'],
+    steps:['Make a clove hitch around the object (wrap, cross, wrap, tuck).','Before tightening: take the working end and pass it UNDER the first wrap (the one that crosses over) before completing the tuck.','This crosses one wrap under another, creating a binding that cinches and locks.','Pull both ends hard to tighten.']},
+  {name:'Lark\'s Head',aka:'Cow Hitch',type:'hitch',strength:50,
+    uses:'Attaching a loop to a bar, ring, or rope. Quick, simple. Hanging items.',
+    warn:'Weakest hitch — adequate for non-critical loads only.',
+    tags:['hitch','quick','hanging'],
+    steps:['Fold your cord or strap into a loop (find the midpoint).','Pass the loop through or around the attachment point.','Pull both free ends of the cord through the loop.','Pull to tighten.']},
+  {name:'Water Knot',aka:'Ring Bend',type:'bend',strength:60,
+    uses:'Joining flat webbing or tape. The only reliable knot for flat material.',
+    warn:'Creeps under repeated loading. Check regularly. Leave 3-inch tails.',
+    tags:['bend','webbing','climbing'],
+    steps:['Tie a loose overhand knot near the end of one piece of webbing.','Take the second piece and thread it through the overhand knot, following the exact same path in reverse.','The second piece traces the first piece\'s path completely.','Pull all four tails to tighten evenly.','Leave at least 3 inches of tail on each end.']},
+  {name:'Overhand Knot',aka:'Simple Knot',type:'stopper',strength:50,
+    uses:'Simplest stopper. Base for many other knots. Quick and basic.',
+    warn:'Weakens rope significantly. Very hard to untie after loading. Use figure eight when possible.',
+    tags:['stopper','quick','basic'],
+    steps:['Make a loop.','Pass the working end through the loop.','Pull to tighten.']},
+];
+
+const situations = [
+  ['Make a non-slip loop','Bowline'],['Join two ropes (same size)','Square Knot'],['Join two ropes (different size)','Sheet Bend'],
+  ['Attach rope to a post','Two Half-Hitches'],['Tension a tent line','Taut-Line Hitch'],['Maximum tension on a line','Trucker\'s Hitch'],
+  ['Drag a log','Timber Hitch'],['Stop rope pulling through','Figure Eight'],['Strong loop for climbing','Figure Eight on a Bight'],
+  ['Climb a rope','Prussik Knot'],['Bind something permanently','Constrictor Knot'],['Hang something from a bar','Lark\'s Head'],
+  ['Join flat webbing','Water Knot'],
+];
+
+// Build quick-pick
+const qgrid = document.getElementById('quick-grid');
+situations.forEach(([sit, knot]) => {
+  const d = document.createElement('div'); d.className = 'quick-item';
+  d.innerHTML = `<span class="quick-situation">${sit}</span><span class="quick-knot">${knot}</span>`;
+  d.onclick = () => {
+    document.getElementById('search').value = knot;
+    filterKnots();
+    setTimeout(() => {
+      const card = document.querySelector('.knot-card');
+      if(card) { card.classList.add('expanded'); card.scrollIntoView({behavior:'smooth',block:'center'}); }
+    }, 100);
+  };
+  qgrid.appendChild(d);
+});
+
+// Build filter buttons
+const types = [{id:'all',label:'All'},{id:'loop',label:'Loops'},{id:'hitch',label:'Hitches'},{id:'bend',label:'Bends'},{id:'stopper',label:'Stoppers'},{id:'binding',label:'Binding'}];
+const frow = document.getElementById('filters');
+types.forEach(t => {
+  const btn = document.createElement('div');
+  btn.className = 'filter-btn' + (t.id === 'all' ? ' active' : '');
+  btn.textContent = t.label;
+  btn.onclick = () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterKnots(t.id);
+  };
+  frow.appendChild(btn);
+});
+
+// Build knot cards
+const grid = document.getElementById('knot-grid');
+let activeSteps = {};
+
+function buildCards(filtered) {
+  grid.innerHTML = '';
+  (filtered || knots).forEach(k => {
+    const card = document.createElement('div'); card.className = 'knot-card';
+    card.dataset.name = k.name.toLowerCase();
+    card.dataset.type = k.type;
+    card.dataset.tags = k.tags.join(' ');
+    
+    const typeColors = {loop:'use-loop',hitch:'use-hitch',bend:'use-bend',stopper:'use-stopper',binding:'use-binding'};
+    
+    card.innerHTML = `
+      <div class="knot-header" onclick="toggleCard(this.parentElement, '${k.name}')">
+        <div class="knot-name">${k.name}</div>
+        ${k.aka ? `<div class="knot-aka">Also: ${k.aka}</div>` : ''}
+        <div class="knot-tags">
+          ${k.tags.map(t => `<span class="knot-tag ${typeColors[t] || ''}">${t}</span>`).join('')}
+        </div>
+        <div class="knot-meta">
+          <span>Strength: <span class="strength-bar"><span class="strength-fill" style="width:${k.strength}%"></span></span> ${k.strength}%</span>
+        </div>
+      </div>
+      <div class="knot-detail">
+        <div class="step-list" id="steps-${k.name.replace(/\s/g,'')}">
+          ${k.steps.map((s, i) => `<div class="step${i===0?' active':''}" data-idx="${i}">${s}</div>`).join('')}
+        </div>
+        <div class="step-controls">
+          <button class="step-btn" onclick="prevStep('${k.name.replace(/\s/g,'')}',event)">← Previous</button>
+          <button class="step-btn primary" onclick="nextStep('${k.name.replace(/\s/g,'')}',event)">Next Step →</button>
+        </div>
+        <div class="knot-use"><h4>When to use</h4><p>${k.uses}</p></div>
+        ${k.warn ? `<div class="knot-warn">⚠ ${k.warn}</div>` : ''}
+      </div>
+    `;
+    grid.appendChild(card);
+    activeSteps[k.name.replace(/\s/g,'')] = 0;
+  });
+}
+
+function toggleCard(card, name) {
+  const wasExpanded = card.classList.contains('expanded');
+  document.querySelectorAll('.knot-card').forEach(c => c.classList.remove('expanded'));
+  if (!wasExpanded) {
+    card.classList.add('expanded');
+    const id = name.replace(/\s/g, '');
+    activeSteps[id] = 0;
+    updateStepHighlight(id);
+  }
+}
+
+function updateStepHighlight(id) {
+  const container = document.getElementById('steps-' + id);
+  if (!container) return;
+  container.querySelectorAll('.step').forEach((s, i) => {
+    s.classList.toggle('active', i <= activeSteps[id]);
+  });
+}
+
+function nextStep(id, e) {
+  e.stopPropagation();
+  const container = document.getElementById('steps-' + id);
+  const max = container.querySelectorAll('.step').length - 1;
+  if (activeSteps[id] < max) activeSteps[id]++;
+  updateStepHighlight(id);
+}
+
+function prevStep(id, e) {
+  e.stopPropagation();
+  if (activeSteps[id] > 0) activeSteps[id]--;
+  updateStepHighlight(id);
+}
+
+function filterKnots(typeFilter) {
+  const q = document.getElementById('search').value.toLowerCase();
+  const type = typeFilter || document.querySelector('.filter-btn.active')?.textContent.toLowerCase() || 'all';
+  
+  const filtered = knots.filter(k => {
+    const matchType = type === 'all' || k.type === type || (type === 'loops' && k.type === 'loop') || (type === 'hitches' && k.type === 'hitch') || (type === 'bends' && k.type === 'bend') || (type === 'stoppers' && k.type === 'stopper');
+    const matchSearch = !q || k.name.toLowerCase().includes(q) || k.uses.toLowerCase().includes(q) || k.tags.some(t => t.includes(q)) || (k.aka && k.aka.toLowerCase().includes(q));
+    return matchType && matchSearch;
+  });
+  buildCards(filtered);
+}
+
+buildCards();
+</script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morse Code — SurvivalAI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f1115;color:#d4d4d8;min-height:100vh;padding:16px}
+h1{font-size:1.4em;color:#e4e4e7;margin-bottom:4px}
+.subtitle{color:#71717a;font-size:.85em;margin-bottom:20px}
+.panel{background:#1a1b22;border:1px solid #2e2f3a;border-radius:10px;padding:20px;margin-bottom:16px}
+.panel h2{font-size:1em;color:#a1a1aa;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px;font-size:.8em}
+textarea{width:100%;padding:12px;background:#0f1115;border:1px solid #2e2f3a;border-radius:6px;color:#e4e4e7;font-size:1em;resize:vertical;min-height:80px;outline:none;font-family:inherit}
+textarea:focus{border-color:#2563eb}
+.morse-output{font-family:'Courier New',monospace;font-size:1.2em;letter-spacing:2px;color:#34d399;word-break:break-all}
+.controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.btn{padding:10px 18px;background:#1e1f26;border:1px solid #2e2f3a;border-radius:6px;color:#d4d4d8;cursor:pointer;font-size:.9em;transition:all .15s}
+.btn:hover{background:#27282f;color:#e4e4e7}
+.btn.primary{background:#2563eb;border-color:#2563eb;color:#fff}
+.btn.primary:hover{background:#1d4ed8}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.speed-control{display:flex;align-items:center;gap:10px;margin-top:12px}
+.speed-control label{color:#a1a1aa;font-size:.85em}
+.speed-control input[type=range]{flex:1;accent-color:#2563eb}
+.speed-control span{color:#e4e4e7;font-size:.85em;min-width:55px}
+.ref-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:4px;margin-top:12px}
+.ref-item{background:#0f1115;border:1px solid #2e2f3a;border-radius:4px;padding:6px 8px;text-align:center;cursor:pointer;transition:all .1s}
+.ref-item:hover{border-color:#2563eb;background:#1e1f26}
+.ref-char{font-size:1.1em;font-weight:bold;color:#e4e4e7}
+.ref-code{font-family:'Courier New',monospace;font-size:.75em;color:#60a5fa;letter-spacing:1px}
+.prosigns{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:4px;margin-top:12px}
+.prosign-item{background:#0f1115;border:1px solid #2e2f3a;border-radius:4px;padding:6px 10px;display:flex;justify-content:space-between;align-items:center}
+.prosign-name{color:#a1a1aa;font-size:.8em}
+.prosign-code{font-family:'Courier New',monospace;color:#f59e0b;font-size:.85em;letter-spacing:1px}
+.visual{display:flex;gap:3px;align-items:center;margin-top:10px;min-height:24px;flex-wrap:wrap}
+.dot{width:10px;height:10px;background:#2563eb;border-radius:50%;transition:background .1s}
+.dash{width:28px;height:10px;background:#2563eb;border-radius:5px;transition:background .1s}
+.char-space{width:12px}
+.word-space{width:28px}
+.dot.active,.dash.active{background:#34d399}
+</style>
+</head>
+<body>
+<h1>Morse Code Encoder / Decoder</h1>
+<p class="subtitle">With audio playback — offline, no internet required</p>
+
+<div class="panel">
+  <h2>Text → Morse</h2>
+  <textarea id="text-input" placeholder="Type text here..." oninput="encode()">SOS</textarea>
+  <div class="morse-output" id="morse-output" style="margin-top:10px"></div>
+  <div class="visual" id="visual-dots"></div>
+  <div class="controls">
+    <button class="btn primary" id="play-btn" onclick="playMorse()">▶ Play Audio</button>
+    <button class="btn" id="stop-btn" onclick="stopMorse()" disabled>■ Stop</button>
+  </div>
+  <div class="speed-control">
+    <label>Speed:</label>
+    <input type="range" id="wpm" min="5" max="30" value="15" oninput="updateSpeed()">
+    <span id="wpm-label">15 WPM</span>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Morse → Text</h2>
+  <textarea id="morse-input" placeholder="Enter morse code (use . and - separated by spaces, / between words)&#10;Example: ... --- ..." oninput="decode()"></textarea>
+  <div style="margin-top:10px;font-size:1.1em;color:#34d399" id="text-output"></div>
+</div>
+
+<div class="panel">
+  <h2>Reference Chart</h2>
+  <div class="ref-grid" id="ref-grid"></div>
+</div>
+
+<div class="panel">
+  <h2>Emergency Prosigns</h2>
+  <div class="prosigns" id="prosigns"></div>
+</div>
+
+<script>
+const MORSE = {
+  'A':'.-','B':'-...','C':'-.-.','D':'-..','E':'.','F':'..-.','G':'--.','H':'....','I':'..','J':'.---',
+  'K':'-.-','L':'.-..','M':'--','N':'-.','O':'---','P':'.--.','Q':'--.-','R':'.-.','S':'...','T':'-',
+  'U':'..-','V':'...-','W':'.--','X':'-..-','Y':'-.--','Z':'--..','0':'-----','1':'.----','2':'..---',
+  '3':'...--','4':'....-','5':'.....','6':'-....','7':'--...','8':'---..','9':'----.', '.':'.-.-.-',
+  ',':'--..--','?':'..--..','!':'-.-.--','/':'-..-.','(':'-.--.',')':'-.--.-','&':'.-...',':':'---...',
+  ';':'-.-.-.','=':'-...-','+':'.-.-.','−':'-....-','"':'.-..-.','\'':'.----.','@':'.--.-.','$':'...-..-'
+};
+const REVERSE = {}; for(const[k,v]of Object.entries(MORSE)) REVERSE[v]=k;
+const PROSIGNS = [
+  ['SOS (Distress)','... --- ...'],['CQ (Calling)','--.- --.-'],['DE (From)','-..','.'],
+  ['AR (End message)','.-.-.',],['SK (End contact)','..-.-'],['BT (Break)','-...-'],
+  ['R (Received)','.-.'],['K (Over)','-.-'],['73 (Best regards)','--... ...--'],
+  ['MAYDAY','-- .- -.-- -.. .- -.--']
+];
+
+function encode(){
+  const text=document.getElementById('text-input').value.toUpperCase();
+  const morse=text.split('').map(c=>{
+    if(c===' ')return '/';
+    return MORSE[c]||'';
+  }).filter(Boolean).join(' ');
+  document.getElementById('morse-output').textContent=morse;
+  buildVisual(morse);
+}
+
+function decode(){
+  const morse=document.getElementById('morse-input').value.trim();
+  const words=morse.split(/\s*\/\s*/);
+  const text=words.map(w=>w.split(/\s+/).map(c=>REVERSE[c]||'?').join('')).join(' ');
+  document.getElementById('text-output').textContent=text;
+}
+
+function buildVisual(morse){
+  const container=document.getElementById('visual-dots');
+  container.innerHTML='';
+  let i=0;
+  for(const ch of morse){
+    if(ch==='.'){const d=document.createElement('div');d.className='dot';d.dataset.idx=i++;container.appendChild(d);}
+    else if(ch==='-'){const d=document.createElement('div');d.className='dash';d.dataset.idx=i++;container.appendChild(d);}
+    else if(ch===' '){const d=document.createElement('div');d.className='char-space';container.appendChild(d);}
+    else if(ch==='/'){const d=document.createElement('div');d.className='word-space';container.appendChild(d);}
+  }
+}
+
+let audioCtx,playing=false,stopFlag=false;
+function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+
+async function playMorse(){
+  if(playing)return;
+  const morse=document.getElementById('morse-output').textContent;
+  if(!morse)return;
+  playing=true;stopFlag=false;
+  document.getElementById('play-btn').disabled=true;
+  document.getElementById('stop-btn').disabled=false;
+  const wpm=parseInt(document.getElementById('wpm').value);
+  const dotLen=1.2/wpm;
+  const ctx=getCtx();
+  const dots=document.querySelectorAll('#visual-dots .dot, #visual-dots .dash');
+  let di=0;
+  for(let i=0;i<morse.length;i++){
+    if(stopFlag)break;
+    const ch=morse[i];
+    if(ch==='.'||ch==='-'){
+      const dur=ch==='.'?dotLen:dotLen*3;
+      const el=dots[di++];
+      if(el)el.classList.add('active');
+      const osc=ctx.createOscillator();const gain=ctx.createGain();
+      osc.connect(gain);gain.connect(ctx.destination);
+      osc.frequency.value=700;gain.gain.value=0.3;
+      osc.start();
+      await sleep(dur*1000);
+      osc.stop();
+      if(el)el.classList.remove('active');
+      await sleep(dotLen*1000);
+    }else if(ch===' '){
+      await sleep(dotLen*2000);
+    }else if(ch==='/'){
+      await sleep(dotLen*4000);
+    }
+  }
+  playing=false;
+  document.getElementById('play-btn').disabled=false;
+  document.getElementById('stop-btn').disabled=true;
+}
+
+function stopMorse(){stopFlag=true;playing=false;document.getElementById('play-btn').disabled=false;document.getElementById('stop-btn').disabled=true;document.querySelectorAll('.dot.active,.dash.active').forEach(e=>e.classList.remove('active'));}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function updateSpeed(){document.getElementById('wpm-label').textContent=document.getElementById('wpm').value+' WPM';}
+
+// Build reference
+const grid=document.getElementById('ref-grid');
+for(const[ch,code]of Object.entries(MORSE)){
+  if(ch.length>1)continue;
+  const d=document.createElement('div');d.className='ref-item';
+  d.innerHTML=`<div class="ref-char">${ch}</div><div class="ref-code">${code}</div>`;
+  d.onclick=()=>{document.getElementById('text-input').value+=ch;encode();};
+  grid.appendChild(d);
+}
+
+const prosignsDiv=document.getElementById('prosigns');
+PROSIGNS.forEach(([name,code])=>{
+  const d=document.createElement('div');d.className='prosign-item';
+  d.innerHTML=`<span class="prosign-name">${name}</span><span class="prosign-code">${code}</span>`;
+  prosignsDiv.appendChild(d);
+});
+
+encode();
+</script>
+</body>
+</html>

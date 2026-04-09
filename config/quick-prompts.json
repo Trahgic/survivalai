@@ -1,0 +1,34 @@
+[
+  {
+    "label": "Stop Bleeding",
+    "prompt": "Someone is bleeding heavily from a wound. Walk me through how to stop the bleeding and treat the wound step by step."
+  },
+  {
+    "label": "Purify Water",
+    "prompt": "I have water from an unknown source. What are my options to make it safe to drink? Give me methods from simplest to most effective."
+  },
+  {
+    "label": "Start a Fire",
+    "prompt": "I need to start a fire and I don't have a lighter or matches. Walk me through friction and improvised methods step by step."
+  },
+  {
+    "label": "Build Shelter",
+    "prompt": "I need emergency shelter with no tools or supplies. What can I build quickly from natural materials to survive tonight?"
+  },
+  {
+    "label": "Person Not Breathing",
+    "prompt": "An adult has collapsed and is not breathing. Walk me through CPR step by step."
+  },
+  {
+    "label": "Identify a Plant",
+    "prompt": "How do I determine if a wild plant is safe to eat? What are the most common edible plants I should look for, and what deadly plants should I avoid?"
+  },
+  {
+    "label": "Broken Bone",
+    "prompt": "Someone has a suspected broken arm or leg. How do I splint it, manage pain, and decide whether to move them?"
+  },
+  {
+    "label": "Find Direction",
+    "prompt": "I'm lost with no compass or GPS. How do I figure out which direction is north during the day and at night?"
+  }
+]

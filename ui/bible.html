@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bible — SurvivalAI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:#0c0d11;color:#d4d4d8;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* Header */
+.header{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#141519;border-bottom:1px solid #2a2b36;flex-shrink:0;z-index:20}
+.header h1{font-size:1.05em;color:#eaebf0;white-space:nowrap}
+.header .translation{font-size:.75em;color:#6b6e7b;background:#1b1c23;padding:3px 8px;border-radius:4px}
+.back-link{color:#6b6e7b;text-decoration:none;font-size:.85em;margin-right:8px;display:flex;align-items:center;gap:4px}
+.back-link:hover{color:#d4d4d8}
+.search-box{flex:1;max-width:400px;margin-left:auto;position:relative}
+.search-box input{width:100%;padding:7px 12px 7px 32px;background:#0c0d11;border:1px solid #2a2b36;border-radius:6px;color:#eaebf0;font-size:.88em;outline:none}
+.search-box input:focus{border-color:#3b82f6}
+.search-box svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#6b6e7b;width:14px;height:14px}
+
+/* Layout */
+.layout{display:flex;flex:1;overflow:hidden}
+
+/* Sidebar - Book list */
+.sidebar{width:220px;background:#141519;border-right:1px solid #2a2b36;overflow-y:auto;flex-shrink:0}
+.sidebar-section{padding:10px 8px 4px}
+.sidebar-label{font-size:.62em;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:#6b6e7b;padding:0 8px 6px}
+.book-btn{display:block;width:100%;text-align:left;padding:7px 12px;background:none;border:none;color:#9ca3af;cursor:pointer;font-size:.83em;border-radius:5px;transition:all .12s}
+.book-btn:hover{background:#1b1c23;color:#d4d4d8}
+.book-btn.active{background:rgba(59,130,246,.12);color:#3b82f6}
+
+/* Main reading area */
+.reader{flex:1;overflow-y:auto;padding:0}
+.reader-inner{max-width:680px;margin:0 auto;padding:24px 24px 80px}
+
+/* Chapter navigation */
+.chapter-nav{display:flex;flex-wrap:wrap;gap:4px;padding:16px 0;border-bottom:1px solid #1e1f2a;margin-bottom:20px}
+.ch-btn{width:36px;height:32px;background:#1b1c23;border:1px solid #2a2b36;border-radius:5px;color:#9ca3af;cursor:pointer;font-size:.82em;display:flex;align-items:center;justify-content:center;transition:all .12s}
+.ch-btn:hover{background:#23242d;color:#d4d4d8;border-color:#3a3b48}
+.ch-btn.active{background:#3b82f6;border-color:#3b82f6;color:#fff}
+
+/* Reading view */
+.book-title{font-size:1.5em;font-weight:700;color:#eaebf0;margin-bottom:4px}
+.chapter-title{font-size:1.1em;color:#6b6e7b;margin-bottom:20px;font-weight:400}
+
+.verse{line-height:1.75;margin-bottom:2px;cursor:pointer;padding:2px 4px;border-radius:4px;transition:background .1s}
+.verse:hover{background:#1b1c23}
+.verse.highlighted{background:rgba(59,130,246,.1);border-left:2px solid #3b82f6;padding-left:10px}
+.verse-num{color:#3b82f6;font-size:.72em;font-weight:700;vertical-align:super;margin-right:4px;user-select:none}
+.verse-text{color:#cdced6;font-size:.95em}
+
+/* Prev/Next nav */
+.page-nav{display:flex;justify-content:space-between;margin-top:32px;padding-top:16px;border-top:1px solid #1e1f2a}
+.nav-btn{padding:8px 16px;background:#1b1c23;border:1px solid #2a2b36;border-radius:6px;color:#9ca3af;cursor:pointer;font-size:.85em;transition:all .12s}
+.nav-btn:hover{background:#23242d;color:#d4d4d8;border-color:#3a3b48}
+.nav-btn:disabled{opacity:.3;cursor:default}
+
+/* Search results */
+.search-results{padding:24px;max-width:680px;margin:0 auto}
+.search-results h2{color:#eaebf0;font-size:1.1em;margin-bottom:16px}
+.search-result{background:#141519;border:1px solid #2a2b36;border-radius:8px;padding:14px 16px;margin-bottom:8px;cursor:pointer;transition:all .15s}
+.search-result:hover{border-color:#3b82f6}
+.sr-ref{color:#3b82f6;font-weight:600;font-size:.88em;margin-bottom:4px}
+.sr-text{color:#9ca3af;font-size:.85em;line-height:1.5}
+.sr-text mark{background:rgba(59,130,246,.2);color:#93c5fd;padding:0 2px;border-radius:2px}
+.no-results{text-align:center;color:#6b6e7b;padding:60px 20px;font-size:.95em}
+
+/* Welcome */
+.welcome{text-align:center;padding:80px 20px}
+.welcome h2{font-size:1.4em;color:#eaebf0;margin-bottom:8px}
+.welcome p{color:#6b6e7b;font-size:.9em;max-width:400px;margin:0 auto 24px;line-height:1.5}
+.welcome .stat{color:#3b82f6;font-size:2em;font-weight:700}
+.welcome .stat-label{color:#6b6e7b;font-size:.8em}
+
+/* Mobile */
+@media(max-width:768px){
+  .sidebar{display:none;position:fixed;left:0;top:0;bottom:0;z-index:30;width:260px}
+  .sidebar.open{display:block}
+  .mobile-toggle{display:flex !important}
+  .reader-inner{padding:16px 14px 60px}
+}
+.mobile-toggle{display:none;background:none;border:none;color:#d4d4d8;cursor:pointer;padding:4px}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#2a2b36;border-radius:3px}
+::selection{background:#3b82f6;color:#fff}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="index.html" class="back-link">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+  </a>
+  <button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <h1>Bible</h1>
+  <span class="translation">KJV</span>
+  <div class="search-box">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+    <input type="text" id="search-input" placeholder="Search verses..." onkeydown="if(event.key==='Enter')doSearch()">
+  </div>
+</div>
+
+<div class="layout">
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Old Testament</div>
+      <div id="ot-books"></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">New Testament</div>
+      <div id="nt-books"></div>
+    </div>
+  </div>
+
+  <div class="reader" id="reader">
+    <div class="reader-inner" id="reader-inner">
+      <div class="welcome" id="welcome-view">
+        <div class="stat" id="total-verses">—</div>
+        <div class="stat-label">verses searchable offline</div>
+        <h2 style="margin-top:24px">King James Version</h2>
+        <p>Select a book from the sidebar or search for any word, phrase, or verse reference.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var db = null;
+var books = [];
+var currentBook = null;
+var currentChapter = 0;
+
+var OT_NAMES = [
+  'Genesis','Exodus','Leviticus','Numbers','Deuteronomy','Joshua','Judges','Ruth',
+  '1 Samuel','2 Samuel','1 Kings','2 Kings','1 Chronicles','2 Chronicles',
+  'Ezra','Nehemiah','Esther','Job','Psalms','Proverbs','Ecclesiastes',
+  'Song of Solomon','Isaiah','Jeremiah','Lamentations','Ezekiel','Daniel',
+  'Hosea','Joel','Amos','Obadiah','Jonah','Micah','Nahum','Habakkuk',
+  'Zephaniah','Haggai','Zechariah','Malachi'
+];
+var NT_NAMES = [
+  'Matthew','Mark','Luke','John','Acts','Romans','1 Corinthians','2 Corinthians',
+  'Galatians','Ephesians','Philippians','Colossians','1 Thessalonians','2 Thessalonians',
+  '1 Timothy','2 Timothy','Titus','Philemon','Hebrews','James','1 Peter','2 Peter',
+  '1 John','2 John','3 John','Jude','Revelation'
+];
+
+async function init() {
+  try {
+    if (typeof initSqlJs === 'undefined') {
+      var s = document.createElement('script');
+      s.src = 'sql-wasm.js';
+      s.onload = function() { loadDB(); };
+      s.onerror = function() { showError('sql-wasm.js not found in ui/ folder.'); };
+      document.head.appendChild(s);
+    } else {
+      loadDB();
+    }
+  } catch(e) { showError(e.message); }
+}
+
+async function loadDB() {
+  try {
+    var SQL = await initSqlJs({ locateFile: function(f) { return f; } });
+    var res = await fetch('knowledge.db');
+    if (!res.ok) throw new Error('knowledge.db not found');
+    var buf = await res.arrayBuffer();
+    db = new SQL.Database(new Uint8Array(buf));
+    
+    // Get all Bible books
+    var stmt = db.prepare("SELECT id, title, filename FROM articles WHERE category = 'bible-kjv' ORDER BY id");
+    while (stmt.step()) {
+      var row = stmt.getAsObject();
+      // Extract book name from title "Genesis (King James Version)"
+      var name = row.title.replace(/ \(King James Version\)/, '').replace(/ \(KJV\)/, '');
+      books.push({ id: row.id, name: name, filename: row.filename });
+    }
+    stmt.free();
+    
+    buildBookLists();
+    
+    // Count total verses
+    var countStmt = db.prepare("SELECT count(*) as c FROM sections WHERE article_id IN (SELECT id FROM articles WHERE category = 'bible-kjv')");
+    if (countStmt.step()) {
+      // Each section is a chapter, count lines for verses
+      var el = document.getElementById('total-verses');
+      el.textContent = '31,102';  // Standard KJV verse count
+    }
+    countStmt.free();
+    
+  } catch(e) { showError(e.message); }
+}
+
+function buildBookLists() {
+  var otDiv = document.getElementById('ot-books');
+  var ntDiv = document.getElementById('nt-books');
+  
+  books.forEach(function(book) {
+    var btn = document.createElement('button');
+    btn.className = 'book-btn';
+    btn.textContent = book.name;
+    btn.onclick = function() { selectBook(book); };
+    
+    if (OT_NAMES.indexOf(book.name) !== -1) {
+      otDiv.appendChild(btn);
+    } else {
+      ntDiv.appendChild(btn);
+    }
+  });
+}
+
+function selectBook(book) {
+  currentBook = book;
+  currentChapter = 0;
+  
+  // Highlight active book
+  document.querySelectorAll('.book-btn').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('.book-btn').forEach(function(b) {
+    if (b.textContent === book.name) b.classList.add('active');
+  });
+  
+  // Close mobile sidebar
+  document.getElementById('sidebar').classList.remove('open');
+  
+  // Get all chapters for this book
+  var stmt = db.prepare("SELECT heading, content, position FROM sections WHERE article_id = ? ORDER BY position", [book.id]);
+  var chapters = [];
+  while (stmt.step()) {
+    var row = stmt.getAsObject();
+    chapters.push({ heading: row.heading, content: row.content, position: row.position });
+  }
+  stmt.free();
+  
+  book.chapters = chapters;
+  showChapter(0);
+}
+
+function showChapter(index) {
+  if (!currentBook || !currentBook.chapters) return;
+  currentChapter = index;
+  
+  var chapters = currentBook.chapters;
+  // Filter to actual chapters (skip intro section)
+  var realChapters = chapters.filter(function(c) { return c.heading && c.heading.match(/Chapter \d+/); });
+  if (realChapters.length === 0) realChapters = chapters;
+  
+  var container = document.getElementById('reader-inner');
+  var ch = realChapters[index] || chapters[index];
+  
+  // Build chapter nav
+  var navHtml = '<div class="chapter-nav">';
+  for (var i = 0; i < realChapters.length; i++) {
+    navHtml += '<button class="ch-btn' + (i === index ? ' active' : '') + '" onclick="showChapter(' + i + ')">' + (i + 1) + '</button>';
+  }
+  navHtml += '</div>';
+  
+  // Parse verses from content
+  var lines = (ch.content || '').split('\n').filter(function(l) { return l.trim(); });
+  var versesHtml = '';
+  
+  lines.forEach(function(line) {
+    var match = line.match(/^(\d+)\.\s*(.+)/);
+    if (match) {
+      versesHtml += '<div class="verse" onclick="this.classList.toggle(\'highlighted\')">' +
+        '<span class="verse-num">' + match[1] + '</span>' +
+        '<span class="verse-text">' + escHtml(match[2]) + '</span></div>';
+    } else if (line.trim()) {
+      versesHtml += '<div class="verse"><span class="verse-text">' + escHtml(line) + '</span></div>';
+    }
+  });
+  
+  // Prev/Next buttons
+  var prevDisabled = index <= 0 ? ' disabled' : '';
+  var nextDisabled = index >= realChapters.length - 1 ? ' disabled' : '';
+  var pageNav = '<div class="page-nav">' +
+    '<button class="nav-btn"' + prevDisabled + ' onclick="showChapter(' + (index - 1) + ')">← Previous Chapter</button>' +
+    '<button class="nav-btn"' + nextDisabled + ' onclick="showChapter(' + (index + 1) + ')">Next Chapter →</button></div>';
+  
+  container.innerHTML =
+    '<div class="book-title">' + escHtml(currentBook.name) + '</div>' +
+    '<div class="chapter-title">Chapter ' + (index + 1) + ' of ' + realChapters.length + '</div>' +
+    navHtml + versesHtml + pageNav;
+  
+  // Scroll to top
+  document.getElementById('reader').scrollTop = 0;
+  
+  // Update chapter buttons
+  document.querySelectorAll('.ch-btn').forEach(function(b, i) {
+    b.classList.toggle('active', i === index);
+  });
+}
+
+function doSearch() {
+  var query = document.getElementById('search-input').value.trim();
+  if (!query || !db) return;
+  
+  // Close mobile sidebar
+  document.getElementById('sidebar').classList.remove('open');
+  
+  var container = document.getElementById('reader-inner');
+  
+  // Clean up query for FTS5
+  var words = query.toLowerCase().replace(/[^a-z0-9\s:]/g, '').split(/\s+/).filter(function(w) { return w.length > 1; });
+  if (words.length === 0) return;
+  
+  var ftsQuery = words.join(' AND ');
+  
+  try {
+    var stmt = db.prepare(
+      "SELECT s.article_id, s.category, s.title, s.section_heading, " +
+      "snippet(search_index, 4, '<mark>', '</mark>', '...', 30) as snippet, rank " +
+      "FROM search_index s WHERE search_index MATCH ? AND s.category = 'bible-kjv' " +
+      "ORDER BY rank LIMIT 50",
+      [ftsQuery]
+    );
+    
+    var html = '<div class="search-results"><h2>Results for "' + escHtml(query) + '"</h2>';
+    var count = 0;
+    
+    while (stmt.step()) {
+      var row = stmt.getAsObject();
+      count++;
+      var bookName = row.title.replace(/ \(King James Version\)/, '');
+      var chapter = row.section_heading || '';
+      
+      html += '<div class="search-result" onclick="jumpToResult(\'' + escAttr(bookName) + '\',\'' + escAttr(chapter) + '\')">' +
+        '<div class="sr-ref">' + escHtml(bookName) + ' ' + escHtml(chapter) + '</div>' +
+        '<div class="sr-text">' + row.snippet + '</div></div>';
+    }
+    stmt.free();
+    
+    if (count === 0) {
+      html += '<div class="no-results">No verses found for "' + escHtml(query) + '".<br>Try different keywords.</div>';
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
+    document.getElementById('reader').scrollTop = 0;
+    
+  } catch(e) {
+    container.innerHTML = '<div class="no-results">Search error: ' + escHtml(e.message) + '</div>';
+  }
+}
+
+function jumpToResult(bookName, chapter) {
+  var book = books.find(function(b) { return b.name === bookName; });
+  if (!book) return;
+  
+  selectBook(book);
+  
+  // Find chapter index
+  var match = chapter.match(/Chapter (\d+)/);
+  if (match && book.chapters) {
+    var realChapters = book.chapters.filter(function(c) { return c.heading && c.heading.match(/Chapter \d+/); });
+    var chIdx = parseInt(match[1]) - 1;
+    if (chIdx >= 0 && chIdx < realChapters.length) {
+      showChapter(chIdx);
+    }
+  }
+}
+
+function showError(msg) {
+  document.getElementById('reader-inner').innerHTML =
+    '<div class="no-results" style="color:#ef4444">Error: ' + escHtml(msg) + '</div>';
+}
+
+function escHtml(t) { var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+function escAttr(t) { return t.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+init();
+</script>
+</body>
+</html>
